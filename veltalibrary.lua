@@ -705,8 +705,9 @@ local function makeColumnObj(sf, registry, openDD)
 				cpOpen = false
 				removeRGB(swatchRgbCb); swatchRgbCb = nil
 				swatchStroke.Color = C.borderBt
-				tw(pickerPanel, {Size=UDim2.new(1,0,0,0)}, MED):Play()
-				task.delay(0.24, function() pickerPanel.Visible = false end)
+				-- use a faster close tween and shorter hide delay to match other UI elements
+				tw(pickerPanel, {Size=UDim2.new(1,0,0,0)}, FAST):Play()
+				task.delay(0.12, function() pickerPanel.Visible = false end)
 				local delta = -(PICKER_H + 2)
 				applyContainerSize()
 				shiftBelow(posY, delta)
@@ -718,6 +719,7 @@ local function makeColumnObj(sf, registry, openDD)
 				pickerPanel.Size    = UDim2.new(1, 0, 0, 0)
 				pickerPanel.Visible = true
 				swatchRgbCb = bindRGB(swatchStroke, "Color")
+				-- open can remain medium, but ensure timing matches close behavior
 				tw(pickerPanel, {Size=UDim2.new(1,0,0,PICKER_H)}, MED):Play()
 				local delta = PICKER_H + 2
 				applyContainerSize()
