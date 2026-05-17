@@ -518,7 +518,8 @@ local function makeColumnObj(sf, registry, openDD)
 			swatchBtn = Instance.new("TextButton")
 			swatchBtn.Size                = UDim2.new(0, 14, 0, 14)
 			-- anchored just right of where the label ends
-			swatchBtn.Position            = UDim2.new(0.44, -SWATCH_W, 0.5, -7)
+			-- pin swatch to a fixed pixel Y so it doesn't shift when container height changes
+			swatchBtn.Position            = UDim2.new(0.44, -SWATCH_W, 0, 4)
 			swatchBtn.BackgroundColor3    = defColor
 			swatchBtn.BorderSizePixel     = 0
 			swatchBtn.Text                = ""
