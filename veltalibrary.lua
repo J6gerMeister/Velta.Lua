@@ -1034,7 +1034,7 @@ function VeltaLib.new(config)
 	dlgTitle.Size                   = UDim2.new(1,-36,0,36)
 	dlgTitle.Position               = UDim2.new(0,24,0,10)
 	dlgTitle.BackgroundTransparency = 1
-	dlgTitle.Font                   = FONT_SCI
+	dlgTitle.Font                   = FONT_REG
 	dlgTitle.TextSize               = 18
 	dlgTitle.TextColor3             = C.textBright
 	dlgTitle.TextTransparency       = 1
@@ -1075,7 +1075,7 @@ function VeltaLib.new(config)
 		b.TextColor3       = textCol
 		b.TextTransparency = 1
 		b.TextSize         = 12
-		b.Font             = FONT_SCI
+		b.Font             = FONT_REG
 		b.AutoButtonColor  = false
 		b.ZIndex           = 93
 		b.Parent           = confirmDialog
