@@ -353,15 +353,20 @@ local function makeColumnObj(sf, registry, openDD)
 	-- Shift everything whose baseY is strictly ABOVE afterY by delta pixels.
 	-- (afterY is the posY of the item that expanded)
 	local function shiftBelow(afterY, delta)
+		-- animate position changes instead of snapping so rollback/expand looks smooth
 		for _, e in ipairs(registry[sf]) do
 			if e.baseY > afterY then
 				e.extra = e.extra + delta
-				e.frame.Position = UDim2.new(
+				local newY = e.baseY + e.extra
+				local newPos = UDim2.new(
 					e.frame.Position.X.Scale,
 					e.frame.Position.X.Offset,
 					0,
-					e.baseY + e.extra
+					newY
 				)
+				-- choose tween speed: collapsing (delta<0) should be snappier
+				local info = (delta < 0) and FAST or MED
+				tw(e.frame, {Position = newPos}, info):Play()
 			end
 		end
 		-- grow canvas
