@@ -1,55 +1,72 @@
--- ESPLibrary.lua
--- This will be your loadstring'd library
-
+-- ESP.lua - Host this on GitHub as a raw file
 local ESPLibrary = {}
 ESPLibrary.__index = ESPLibrary
 
 function ESPLibrary.new()
     local self = setmetatable({}, ESPLibrary)
     
-    -- Services
-    self.Players = game:GetService("Players")
-    self.RunService = game:GetService("RunService")
-    self.UserInputService = game:GetService("UserInputService")
-    self.ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
     
-    self.LocalPlayer = self.Players.LocalPlayer
-    self.ScreenGui = nil
-    self.ESPFolder = nil
+    self.Players = Players
+    self.RunService = RunService
+    self.UserInputService = UserInputService
+    self.ReplicatedStorage = ReplicatedStorage
+    self.LocalPlayer = Players.LocalPlayer
     
-    -- State
     self.Enabled = false
     self.ESPObjects = {}
     self.ItemCache = {}
-    self.AICache = {}
     
-    -- Settings (configurable from GUI)
     self.Settings = {
-        RenderDistance = 2000,
+        BoxType = "Frame 2D",
+        Charms = "Normal",
+        HealthBar = "Horizontal Below",
+        Tracers = "Bottom",
+        BarColor = "Health Based",
+        TeamColor = "Relative",
+        BulletTracers = false,
+        HeadDot = 2,
+        ShowEnemies = true,
+        ShowAllies = false,
+        ShowChickens = false,
+        ShowFish = false,
+        ShowLocalPlayer = false,
+        SmokeCheck = false,
+        LegitMode = false,
+        VisibilityCheck = true,
+        ShowClan = true,
         ShowNames = true,
-        ShowDistance = true,
-        ShowHighlight = true,
-        ShowArmor = true,
-        ShowPrimary1 = true,
-        ShowPrimary2 = true,
-        ItemSearch = false,
-        ShowAI = false,
-        SelectedItems = {}
+        ShowRank = false,
+        ShowSteamID = false,
+        ESPKey = "Z",
+        RecoilCrosshair = false,
+        OnlyWhenShooting = false,
+        FOVCircle = false,
+        FOVFilled = false,
+        ShowSpread = false,
+        ShowSpreadLimit = false,
+        Skybox = "cs_baggage_skybox_",
+        Arms = "Default",
+        Dlights = 500,
+        NoFlash = 160,
+        ShowFootsteps = 1000,
+        NoViewPunch = false,
+        NoAimPunch = false,
+        WeaponESP = "ASUS Walls",
+        NoSky = false,
+        NoScopeBorder = false,
+        NoSmoke = false,
+        AutowallDebug = false,
+        RadarSize = 16,
+        RadarRelative = true,
+        IconsScale = 4.5
     }
     
-    -- Item lists
-    self.AllItems = {"ZShVisor", "12gaAP", "12gaBuckshot"} -- truncated for brevity
-    self.Guns = {ADAR15 = true, AKM = true, M4 = true} -- truncated
-    self.Armor = {["6B2"] = true, Altyn = true, FastMT = true} -- truncated
-    
-    -- Colors
-    self.WHITE = Color3.fromRGB(255, 255, 255)
-    self.Colors = {
-        Box = Color3.fromRGB(255, 0, 0),
-        Ally = Color3.fromRGB(0, 255, 0),
-        Enemy = Color3.fromRGB(255, 0, 0),
-        Health = Color3.fromRGB(0, 255, 0)
-    }
+    self.ScreenGui = nil
+    self.ESPFolder = nil
     
     return self
 end
@@ -58,14 +75,12 @@ function ESPLibrary:Initialize()
     self.ScreenGui = Instance.new("ScreenGui")
     self.ScreenGui.Name = "ESP_GUI"
     self.ScreenGui.Parent = game:GetService("CoreGui")
-    self.ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     
     self.ESPFolder = Instance.new("Folder")
     self.ESPFolder.Name = "ESPFolder"
     self.ESPFolder.Parent = self.ScreenGui
     
     self:StartESP()
-    self:StartItemScanner()
 end
 
 function ESPLibrary:StartESP()
@@ -85,7 +100,7 @@ function ESPLibrary:StartESP()
                         local hrp = character.HumanoidRootPart
                         local dist = (localRoot.Position - hrp.Position).Magnitude
                         
-                        if dist < self.Settings.RenderDistance then
+                        if dist < 2000 then
                             if not self.ESPObjects[player] then
                                 self:CreateESP(player, character)
                             end
@@ -101,13 +116,6 @@ function ESPLibrary:StartESP()
                 end
             end
         end
-        
-        -- AI ESP
-        if self.Settings.ShowAI then
-            self:UpdateAIESP(localRoot)
-        else
-            self:ClearAIESP()
-        end
     end)
 end
 
@@ -117,7 +125,7 @@ function ESPLibrary:CreateESP(player, character)
     
     local gui = Instance.new("BillboardGui")
     gui.Adornee = hrp
-    gui.Size = UDim2.new(0, 180, 0, 120)
+    gui.Size = UDim2.new(0, 200, 0, 150)
     gui.StudsOffset = Vector3.new(0, 3, 0)
     gui.AlwaysOnTop = true
     gui.Parent = self.ESPFolder
@@ -127,41 +135,46 @@ function ESPLibrary:CreateESP(player, character)
     frame.Size = UDim2.fromScale(1, 1)
     frame.Parent = gui
     
-    -- Create labels
-    local labels = {}
-    local positions = {0, 16, 32, 48, 64, 80}
-    local heights = {14, 14, 14, 14, 14, 14}
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Font = Enum.Font.SourceSansBold
+    nameLabel.TextSize = 14
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.Size = UDim2.new(1, -20, 0, 16)
+    nameLabel.Position = UDim2.new(0, 10, 0, 0)
+    nameLabel.Parent = frame
     
-    local function createLabel(name, position, height)
-        local label = Instance.new("TextLabel")
-        label.BackgroundTransparency = 1
-        label.Font = Enum.Font.SourceSansBold
-        label.TextSize = 12
-        label.TextColor3 = self.WHITE
-        label.Size = UDim2.new(1, -20, 0, height)
-        label.Position = UDim2.new(0, 10, 0, position)
-        label.Parent = frame
-        return label
-    end
+    local distLabel = Instance.new("TextLabel")
+    distLabel.BackgroundTransparency = 1
+    distLabel.Font = Enum.Font.SourceSans
+    distLabel.TextSize = 12
+    distLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    distLabel.Size = UDim2.new(1, -20, 0, 16)
+    distLabel.Position = UDim2.new(0, 10, 0, 18)
+    distLabel.Parent = frame
     
-    labels.Name = createLabel("Name", positions[1], heights[1])
-    labels.Distance = createLabel("Distance", positions[2], heights[2])
-    labels.Primary1 = createLabel("Primary1", positions[3], heights[3])
-    labels.Primary2 = createLabel("Primary2", positions[4], heights[4])
-    labels.Armor = createLabel("Armor", positions[5], heights[5])
-    labels.Item = createLabel("Item", positions[6], heights[6])
+    local infoLabel = Instance.new("TextLabel")
+    infoLabel.BackgroundTransparency = 1
+    infoLabel.Font = Enum.Font.SourceSans
+    infoLabel.TextSize = 12
+    infoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    infoLabel.Size = UDim2.new(1, -20, 0, 16)
+    infoLabel.Position = UDim2.new(0, 10, 0, 36)
+    infoLabel.Parent = frame
     
     local highlight = Instance.new("Highlight")
     highlight.Adornee = character
     highlight.FillTransparency = 1
     highlight.OutlineTransparency = 0.5
-    highlight.OutlineColor = self.WHITE
+    highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
     highlight.Parent = character
     
     self.ESPObjects[player] = {
         Character = character,
         GUI = gui,
-        Labels = labels,
+        NameLabel = nameLabel,
+        DistLabel = distLabel,
+        InfoLabel = infoLabel,
         Highlight = highlight
     }
 end
@@ -170,64 +183,46 @@ function ESPLibrary:UpdateESP(player, distance)
     local esp = self.ESPObjects[player]
     if not esp then return end
     
-    local labels = esp.Labels
-    
-    -- Update name
-    labels.Name.Visible = self.Settings.ShowNames
+    -- Name
     if self.Settings.ShowNames then
-        labels.Name.Text = player.Name
-    end
-    
-    -- Update distance
-    labels.Distance.Visible = self.Settings.ShowDistance
-    if self.Settings.ShowDistance then
-        labels.Distance.Text = math.floor(distance) .. " studs"
-    end
-    
-    -- Get inventory
-    local primaries = {}
-    local armors = {}
-    
-    if self.Settings.ShowPrimary1 or self.Settings.ShowPrimary2 or self.Settings.ShowArmor then
-        local playerData = self.ReplicatedStorage.Players:FindFirstChild(player.Name)
-        local inv = playerData and playerData:FindFirstChild("Inventory")
-        if inv then
-            for _, item in pairs(inv:GetChildren()) do
-                if self.Guns[item.Name] then
-                    table.insert(primaries, item.Name)
-                elseif self.Armor[item.Name] then
-                    table.insert(armors, item.Name)
-                end
-            end
+        local name = player.Name
+        if self.Settings.ShowClan then
+            -- Add clan tag if available
         end
+        if self.Settings.ShowRank then
+            -- Add rank if available
+        end
+        esp.NameLabel.Text = name
+    end
+    esp.NameLabel.Visible = self.Settings.ShowNames
+    
+    -- Distance
+    esp.DistLabel.Text = math.floor(distance) .. "m"
+    esp.DistLabel.Visible = true
+    
+    -- Info (Health, Armor etc.)
+    local info = ""
+    local humanoid = esp.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        info = "HP: " .. math.floor(humanoid.Health)
+    end
+    esp.InfoLabel.Text = info
+    
+    -- Highlight
+    esp.Highlight.Enabled = true
+    
+    -- Box Type
+    if self.Settings.BoxType == "Frame 2D" then
+        esp.Highlight.FillTransparency = 1
+        esp.Highlight.OutlineTransparency = 0.5
+    elseif self.Settings.BoxType == "Frame 3D" then
+        esp.Highlight.FillTransparency = 0.8
+        esp.Highlight.OutlineTransparency = 0.3
     end
     
-    -- Update primary weapons
-    labels.Primary1.Visible = self.Settings.ShowPrimary1 and #primaries >= 1
-    if labels.Primary1.Visible then
-        labels.Primary1.Text = "Primary1: " .. primaries[1]
-    end
-    
-    labels.Primary2.Visible = self.Settings.ShowPrimary2 and #primaries >= 2
-    if labels.Primary2.Visible then
-        labels.Primary2.Text = "Primary2: " .. primaries[2]
-    end
-    
-    -- Update armor
-    local armorText = table.concat(armors, ", ")
-    labels.Armor.Visible = self.Settings.ShowArmor and armorText ~= ""
-    if labels.Armor.Visible then
-        labels.Armor.Text = "Armor: " .. armorText
-    end
-    
-    -- Update item search
-    labels.Item.Visible = self.Settings.ItemSearch
-    if self.Settings.ItemSearch then
-        labels.Item.Text = self.ItemCache[player] or ""
-    end
-    
-    -- Update highlight
-    esp.Highlight.Enabled = self.Settings.ShowHighlight
+    -- Health bar logic based on Settings.HealthBar
+    -- Tracers logic based on Settings.Tracers
+    -- etc.
 end
 
 function ESPLibrary:RemoveESP(player)
@@ -240,48 +235,16 @@ function ESPLibrary:RemoveESP(player)
     self.ESPObjects[player] = nil
 end
 
-function ESPLibrary:StartItemScanner()
-    task.spawn(function()
-        while true do
-            if self.Settings.ItemSearch then
-                for _, player in ipairs(self.Players:GetPlayers()) do
-                    if player ~= self.LocalPlayer then
-                        local playerData = self.ReplicatedStorage.Players:FindFirstChild(player.Name)
-                        if playerData then
-                            local inv = playerData:FindFirstChild("Inventory")
-                            if inv then
-                                local foundItems = {}
-                                for _, item in pairs(inv:GetChildren()) do
-                                    if self.Settings.SelectedItems[item.Name] then
-                                        table.insert(foundItems, item.Name)
-                                    end
-                                end
-                                self.ItemCache[player] = table.concat(foundItems, ", ")
-                            end
-                        end
-                    end
-                end
-            end
-            task.wait(1)
-        end
-    end)
-end
-
 function ESPLibrary:SetSetting(setting, value)
     self.Settings[setting] = value
 end
 
-function ESPLibrary:GetSetting(setting)
-    return self.Settings[setting]
-end
-
 function ESPLibrary:Toggle(enabled)
     self.Enabled = enabled
-end
-
-function ESPLibrary:SetColor(colorType, color)
-    if self.Colors[colorType] then
-        self.Colors[colorType] = color
+    if not enabled then
+        for player, _ in pairs(self.ESPObjects) do
+            self:RemoveESP(player)
+        end
     end
 end
 
