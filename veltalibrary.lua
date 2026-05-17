@@ -352,16 +352,22 @@ local function makeColumnObj(sf, registry, openDD)
 
 	-- Shift everything whose baseY is strictly ABOVE afterY by delta pixels.
 	-- (afterY is the posY of the item that expanded)
-	local function shiftBelow(afterY, delta)
+	local function shiftBelow(afterY, delta, animate)
+		if animate == nil then animate = true end
 		for _, e in ipairs(registry[sf]) do
 			if e.baseY > afterY then
 				e.extra = e.extra + delta
-				e.frame.Position = UDim2.new(
+				local targetPos = UDim2.new(
 					e.frame.Position.X.Scale,
 					e.frame.Position.X.Offset,
 					0,
 					e.baseY + e.extra
 				)
+				if animate and delta ~= 0 then
+					tw(e.frame, {Position = targetPos}, MED):Play()
+				else
+					e.frame.Position = targetPos
+				end
 			end
 		end
 		-- grow canvas
@@ -619,7 +625,7 @@ local function makeColumnObj(sf, registry, openDD)
 			tw(container, {Size = UDim2.new(1, -12, 0, containerH())}, MED):Play()
 			task.delay(0.24, function() listFrame.Visible = false end)
 			local delta = -LIST_H
-			shiftBelow(posY, delta)
+			shiftBelow(posY, delta, true)
 			updatePickerPos()
 		end
 
@@ -634,7 +640,7 @@ local function makeColumnObj(sf, registry, openDD)
 			tw(btnStroke, {Color=C.borderBt}):Play()
 			tw(container, {Size = UDim2.new(1, -12, 0, containerH())}, MED):Play()
 			local delta = LIST_H
-			shiftBelow(posY, delta)
+			shiftBelow(posY, delta, true)
 			updatePickerPos()  -- slide picker panel down with list
 		end
 
@@ -709,7 +715,7 @@ local function makeColumnObj(sf, registry, openDD)
 				tw(container, {Size = UDim2.new(1, -12, 0, containerH())}, MED):Play()
 				task.delay(0.24, function() pickerPanel.Visible = false end)
 				local delta = -(PICKER_H + 2)
-				shiftBelow(posY, delta)
+				shiftBelow(posY, delta, true)
 			end
 
 			local function openCP()
@@ -721,7 +727,7 @@ local function makeColumnObj(sf, registry, openDD)
 				tw(pickerPanel, {Size=UDim2.new(1,0,0,PICKER_H)}, MED):Play()
 				tw(container, {Size = UDim2.new(1, -12, 0, containerH())}, MED):Play()
 				local delta = PICKER_H + 2
-				shiftBelow(posY, delta)
+				shiftBelow(posY, delta, true)
 			end
 
 			swatchBtn.MouseButton1Click:Connect(function()
