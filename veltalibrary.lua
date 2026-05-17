@@ -523,7 +523,8 @@ local function makeColumnObj(sf, registry, openDD)
 			swatchBtn.BorderSizePixel     = 0
 			swatchBtn.Text                = ""
 			swatchBtn.AutoButtonColor     = false
-			swatchBtn.ZIndex              = 6
+			-- keep the swatch above the picker/list so it never gets occluded
+			swatchBtn.ZIndex              = 60
 			swatchBtn.Parent              = container
 			corner(swatchBtn, 2)
 			swatchStroke = stroke(swatchBtn, C.borderBt, 1.5, 0)
