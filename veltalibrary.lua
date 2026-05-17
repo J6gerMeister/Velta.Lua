@@ -715,7 +715,7 @@ local function makeColumnObj(sf, registry, openDD)
 				tw(container, {Size = UDim2.new(1, -12, 0, containerH())}, MED):Play()
 				task.delay(0.24, function() pickerPanel.Visible = false end)
 				local delta = -(PICKER_H + 2)
-				shiftBelow(posY, delta, true)
+				task.delay(0.24, function() shiftBelow(posY, delta, true) end)
 			end
 
 			local function openCP()
