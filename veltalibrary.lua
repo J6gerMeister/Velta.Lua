@@ -1,36 +1,46 @@
 -- VeltaLibrary.lua
 -- Reusable GUI library for Velta-style mod menu UIs.
 -- Educational / cosmetic demonstration only — no functional game hooks.
+--
+-- NEW in this version:
+--   col:ColorPicker(labelText, defaultColor, defaultOpacity, callback)
+--       Shows a hue wheel, brightness slider, opacity slider, and live preview.
+--       callback(color3, opacity)  where opacity is 0-1
+--
+--   col:ExpandableCheckbox(labelText, default, callback, subBuilder)
+--       A normal checkbox that, when checked, expands a sub-section below it.
+--       subBuilder is a function(subCol) where subCol is a column object you
+--       can call :ColorPicker() / :Slider() / :Dropdown() etc. on.
+--       Example:
+--           vL:ExpandableCheckbox("Enemies", false, nil, function(s)
+--               s:ColorPicker("Color", Color3.fromRGB(255,60,60), 1)
+--           end)
 
 local Players      = game:GetService("Players")
 local UIS          = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
-local RGBCallbacks = {}   -- { fn }  called every tick with current Color3
-local rgbColor     = Color3.fromRGB(140, 70, 240)  -- starting value
+local RGBCallbacks = {}
+local rgbColor     = Color3.fromRGB(140, 70, 240)
 
 task.spawn(function()
 	local t = 0
 	while true do
 		t = t + task.wait(0.03)
-		-- full cycle in ~4 seconds
 		local hue = (t / 4) % 1
 		rgbColor = Color3.fromHSV(hue, 1, 1)
-		for _, cb in ipairs(RGBCallbacks) do
-			pcall(cb, rgbColor)
-		end
+		for _, cb in ipairs(RGBCallbacks) do pcall(cb, rgbColor) end
 	end
 end)
 
--- Register an instance property to follow the RGB colour
 local function bindRGB(instance, prop)
 	local cb = function(c) instance[prop] = c end
 	table.insert(RGBCallbacks, cb)
-	return cb   -- returned so callers can remove it if needed
+	return cb
 end
 
 -- ============================================================
---  THEME  (violet values kept as fallback / initial; RGB replaces at runtime)
+--  THEME
 -- ============================================================
 local C = {
 	shellLight = Color3.fromRGB(120,120,120),
@@ -40,7 +50,7 @@ local C = {
 	bgBot      = Color3.fromRGB(50, 50, 50),
 	panel      = Color3.fromRGB(20, 20, 20),
 	panelHover = Color3.fromRGB(28, 28, 28),
-	violet     = Color3.fromRGB(140, 70, 240),   -- replaced by RGB at runtime
+	violet     = Color3.fromRGB(140, 70, 240),
 	violetDim  = Color3.fromRGB(90,  45, 160),
 	violetGlow = Color3.fromRGB(175,110, 255),
 	border     = Color3.fromRGB(42, 42, 42),
@@ -98,6 +108,26 @@ local function gradient(inst, c0, c1, rot)
 	g.Rotation = rot or 90
 	g.Parent   = inst
 	return g
+end
+
+-- ============================================================
+--  COLOR MATH HELPERS
+-- ============================================================
+-- Draw a hue ring on an ImageLabel using a UIGradient trick
+-- (full rainbow ColorSequence)
+local function makeRainbowSequence()
+	local keys = {}
+	local steps = 12
+	for i = 0, steps do
+		local t = i / steps
+		keys[i+1] = ColorSequenceKeypoint.new(t, Color3.fromHSV(t, 1, 1))
+	end
+	return ColorSequence.new(keys)
+end
+
+-- Returns H,S,V from Color3
+local function colorToHSV(c)
+	return Color3.toHSV(c)
 end
 
 -- ============================================================
@@ -208,7 +238,6 @@ local function makeColumnObj(sf, registry, openDD)
 		corner(box, 0)
 		local boxStroke = stroke(box, default and rgbColor or C.border, 1)
 
-		-- RGB animation for checked state
 		local boxRgbCb, strokeRgbCb
 		local function startRGB()
 			if boxRgbCb then return end
@@ -386,7 +415,6 @@ local function makeColumnObj(sf, registry, openDD)
 		stroke(listFrame, C.borderBt, 1, 0.2)
 		gradient(listFrame, Color3.fromRGB(22,22,22), Color3.fromRGB(12,12,12), 180)
 
-		-- RGB on arrow when open
 		local arrowRgbCb
 		local function startArrowRGB()
 			if arrowRgbCb then return end
@@ -430,9 +458,8 @@ local function makeColumnObj(sf, registry, openDD)
 			shiftBelow(posY, LIST_H)
 		end
 
-		-- Option rows
 		local optButtons = {}
-		local optionRgbCallbacks = {}  -- Track RGB callbacks by option index
+		local optionRgbCallbacks = {}
 		for i, optText in ipairs(options) do
 			local optBtn = Instance.new("TextButton")
 			optBtn.Size                   = UDim2.new(1,0,0,ITEM_H)
@@ -454,7 +481,6 @@ local function makeColumnObj(sf, registry, openDD)
 			selBar.ZIndex           = 22
 			selBar.Parent           = optBtn
 			corner(selBar, 0)
-			-- RGB on the selection bar
 			if i == selIdx then bindRGB(selBar, "BackgroundColor3") end
 
 			local optLbl = Instance.new("TextLabel")
@@ -468,8 +494,7 @@ local function makeColumnObj(sf, registry, openDD)
 			optLbl.TextXAlignment         = Enum.TextXAlignment.Left
 			optLbl.ZIndex                 = 22
 			optLbl.Parent                 = optBtn
-			-- RGB on the selected label
-			optionRgbCallbacks[i] = nil  -- Initialize as nil
+			optionRgbCallbacks[i] = nil
 			if i == selIdx then
 				optionRgbCallbacks[i] = bindRGB(optLbl, "TextColor3")
 			end
@@ -500,26 +525,20 @@ local function makeColumnObj(sf, registry, openDD)
 			end)
 
 			optBtn.MouseButton1Click:Connect(function()
-				-- Remove RGB callback from previously selected option
 				if optionRgbCallbacks[selIdx] then
-					for i, cb in ipairs(RGBCallbacks) do
+					for i2, cb in ipairs(RGBCallbacks) do
 						if cb == optionRgbCallbacks[selIdx] then
-							table.remove(RGBCallbacks, i)
+							table.remove(RGBCallbacks, i2)
 							break
 						end
 					end
 					optionRgbCallbacks[selIdx] = nil
 				end
-
-				-- reset all rows
 				for _, child in ipairs(listFrame:GetChildren()) do
 					if child:IsA("TextButton") then
 						child.BackgroundTransparency = 1
 						local cLbl = child:FindFirstChildWhichIsA("TextLabel")
-						if cLbl then
-							-- remove any rgb binding on old labels
-							cLbl.TextColor3 = C.text
-						end
+						if cLbl then cLbl.TextColor3 = C.text end
 						for _, cc in ipairs(child:GetChildren()) do
 							if cc:IsA("Frame") then cc.Visible = false end
 						end
@@ -527,7 +546,6 @@ local function makeColumnObj(sf, registry, openDD)
 				end
 				selIdx            = i
 				selLbl.Text       = optText
-				-- apply RGB to new selection
 				optLbl.TextColor3 = rgbColor
 				optionRgbCallbacks[i] = bindRGB(optLbl, "TextColor3")
 				selBar.Visible    = true
@@ -623,9 +641,7 @@ local function makeColumnObj(sf, registry, openDD)
 		local dragging = false
 		knob.MouseButton1Down:Connect(function() dragging = true end)
 		UIS.InputEnded:Connect(function(inp)
-			if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-				dragging = false
-			end
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 		end)
 		UIS.InputChanged:Connect(function(inp)
 			if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
@@ -682,7 +698,7 @@ local function makeColumnObj(sf, registry, openDD)
 		return self
 	end
 
-	-- ── KeyDisplay (standalone full-width key badge) ────────
+	-- ── KeyDisplay ──────────────────────────────────────────
 	function col:KeyDisplay(key)
 		local posY = self._y
 		local keyD = Instance.new("TextButton")
@@ -836,6 +852,713 @@ local function makeColumnObj(sf, registry, openDD)
 		return self
 	end
 
+	-- ================================================================
+	--  ColorPicker  ── NEW COMPONENT
+	-- ================================================================
+	-- Usage: col:ColorPicker(labelText, defaultColor, defaultOpacity, callback)
+	--   labelText      : string shown on the header row
+	--   defaultColor   : Color3 (default Color3.fromRGB(255,255,255))
+	--   defaultOpacity : number 0-1 (default 1.0)
+	--   callback       : function(Color3, opacity)  called on every change
+	--
+	-- Layout (collapsed = 22px header-row):
+	--   Expanded (+130px):
+	--     [Hue bar: full width]         12px tall
+	--     [SV square: left ~60%]        60px tall
+	--       [Preview swatch: right 35%] sits next to SV square
+	--     [Brightness label + slider]   22px
+	--     [Opacity    label + slider]   22px
+	-- ================================================================
+	function col:ColorPicker(labelText, defaultColor, defaultOpacity, callback)
+		-- ── tuneable layout constants ──────────────────────────────
+		-- All sizes are in pixels. Edit these to reposition things.
+		local PANEL_H       = 134    -- total expanded height (excluding the 22px header row)
+		local HUE_H         = 12     -- height of the hue bar
+		local HUE_MARGIN_T  = 6      -- gap above hue bar
+		local SV_W_FRAC     = 0.60   -- fraction of container width used by SV square
+		local SV_H          = 60     -- height of SV square
+		local SV_TOP        = HUE_MARGIN_T + HUE_H + 6
+		local PREV_TOP      = SV_TOP
+		local PREV_H        = SV_H
+		local BR_TOP        = SV_TOP + SV_H + 6
+		local OP_TOP        = BR_TOP + 26
+		-- ──────────────────────────────────────────────────────────
+
+		defaultColor   = defaultColor   or Color3.fromRGB(255, 255, 255)
+		defaultOpacity = defaultOpacity or 1.0
+
+		local curH, curS, curV = colorToHSV(defaultColor)
+		local curOpacity        = defaultOpacity
+		local isOpen            = false
+
+		-- Header row (always visible, acts as toggle button)
+		local posY   = self._y
+		local headerH = 22
+		local headerRow = Instance.new("Frame")
+		headerRow.Size             = UDim2.new(1,-12,0,headerH)
+		headerRow.Position         = UDim2.new(0,6,0,posY)
+		headerRow.BackgroundColor3 = C.rowBg
+		headerRow.BorderSizePixel  = 0
+		headerRow.ZIndex           = 3
+		headerRow.Parent           = sf
+		corner(headerRow, 0)
+		stroke(headerRow, C.border, 1, 0.4)
+		gradient(headerRow, C.rowBgLight, C.rowBg, 180)
+		regItem(headerRow, posY)
+
+		-- Small color swatch inside header
+		local swatchPreview = Instance.new("Frame")
+		swatchPreview.Size             = UDim2.new(0,14,0,14)
+		swatchPreview.Position         = UDim2.new(0,0,0.5,-7)
+		swatchPreview.BackgroundColor3 = defaultColor
+		swatchPreview.BorderSizePixel  = 0
+		swatchPreview.ZIndex           = 5
+		swatchPreview.Parent           = headerRow
+		corner(swatchPreview, 2)
+		stroke(swatchPreview, C.borderBt, 1, 0)
+
+		local headerLbl = Instance.new("TextLabel")
+		headerLbl.Text                   = labelText
+		headerLbl.Font                   = FONT_REG
+		headerLbl.TextSize               = 12
+		headerLbl.TextColor3             = C.text
+		headerLbl.BackgroundTransparency = 1
+		headerLbl.Size                   = UDim2.new(1,-60,1,0)
+		headerLbl.Position               = UDim2.new(0,20,0,0)
+		headerLbl.TextXAlignment         = Enum.TextXAlignment.Left
+		headerLbl.ZIndex                 = 4
+		headerLbl.Parent                 = headerRow
+
+		local cpArrow = Instance.new("TextLabel")
+		cpArrow.Text                   = "▾"
+		cpArrow.Font                   = FONT_BOLD
+		cpArrow.TextSize               = 10
+		cpArrow.TextColor3             = C.textDim
+		cpArrow.BackgroundTransparency = 1
+		cpArrow.Size                   = UDim2.new(0,16,1,0)
+		cpArrow.Position               = UDim2.new(1,-18,0,0)
+		cpArrow.TextXAlignment         = Enum.TextXAlignment.Center
+		cpArrow.ZIndex                 = 4
+		cpArrow.Parent                 = headerRow
+
+		-- Expandable panel
+		local panel = Instance.new("Frame")
+		panel.Size             = UDim2.new(1,-12,0,0)
+		panel.Position         = UDim2.new(0,6,0,posY + headerH + 2)
+		panel.BackgroundColor3 = Color3.fromRGB(15,15,15)
+		panel.BorderSizePixel  = 0
+		panel.ClipsDescendants = true
+		panel.ZIndex           = 3
+		panel.Visible          = false
+		panel.Parent           = sf
+		corner(panel, 0)
+		stroke(panel, C.border, 1, 0.3)
+		regItem(panel, posY + headerH + 2)
+
+		-- ── build the inner color picker ─────────────────────────
+
+		-- Helper: build a 1px gradient frame representing the full hue rainbow
+		local hueBar = Instance.new("Frame")
+		hueBar.Size             = UDim2.new(1,-10,0,HUE_H)
+		hueBar.Position         = UDim2.new(0,5,0,HUE_MARGIN_T)
+		hueBar.BackgroundColor3 = Color3.fromRGB(255,0,0)
+		hueBar.BorderSizePixel  = 0
+		hueBar.ZIndex           = 4
+		hueBar.Parent           = panel
+		corner(hueBar, 2)
+		do
+			local g = Instance.new("UIGradient")
+			g.Color    = makeRainbowSequence()
+			g.Rotation = 0
+			g.Parent   = hueBar
+		end
+
+		-- Hue cursor (vertical bar inside hueBar)
+		local hueCursor = Instance.new("Frame")
+		hueCursor.Size             = UDim2.new(0,2,1,4)
+		hueCursor.Position         = UDim2.new(curH,-1,0,-2)
+		hueCursor.BackgroundColor3 = Color3.fromRGB(255,255,255)
+		hueCursor.BorderSizePixel  = 0
+		hueCursor.ZIndex           = 6
+		hueCursor.Parent           = hueBar
+		corner(hueCursor, 1)
+		stroke(hueCursor, Color3.fromRGB(0,0,0), 1, 0)
+
+		-- SV (saturation-value) square
+		-- We simulate it with two overlaid gradients: white→hue and transparent→black
+		local svBox = Instance.new("Frame")
+		svBox.Size             = UDim2.new(SV_W_FRAC,-6,0,SV_H)
+		svBox.Position         = UDim2.new(0,5,0,SV_TOP)
+		svBox.BackgroundColor3 = Color3.fromHSV(curH,1,1)
+		svBox.BorderSizePixel  = 0
+		svBox.ZIndex           = 4
+		svBox.Parent           = panel
+		corner(svBox, 2)
+
+		local svWhiteGrad = Instance.new("UIGradient")
+		svWhiteGrad.Color    = ColorSequence.new(Color3.fromRGB(255,255,255), Color3.new(1,1,1))
+		-- white (opaque) left  →  hue color right
+		svWhiteGrad.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		svWhiteGrad.Rotation = 0
+		svWhiteGrad.Parent   = svBox
+		-- Actually we just set BackgroundColor3 to white and overlay the hue;
+		-- easier approach: left column = white→hue (horizontal), then vertical black overlay
+		-- Re-implement cleanly:
+		svWhiteGrad:Destroy()
+
+		-- Layer 1: horizontal white→pure hue
+		do
+			local g = Instance.new("UIGradient")
+			g.Color    = ColorSequence.new(Color3.fromRGB(255,255,255), Color3.fromHSV(curH,1,1))
+			g.Rotation = 0
+			g.Parent   = svBox
+		end
+
+		-- Layer 2: vertical transparent→black overlay (Frame on top)
+		local svDark = Instance.new("Frame")
+		svDark.Size             = UDim2.fromScale(1,1)
+		svDark.BackgroundColor3 = Color3.fromRGB(0,0,0)
+		svDark.BorderSizePixel  = 0
+		svDark.ZIndex           = 5
+		svDark.Parent           = svBox
+		corner(svDark, 2)
+		do
+			local g = Instance.new("UIGradient")
+			g.Color    = ColorSequence.new(Color3.fromRGB(0,0,0), Color3.fromRGB(0,0,0))
+			g.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(1, 0),
+			})
+			g.Rotation = 90
+			g.Parent   = svDark
+		end
+
+		-- SV cursor circle
+		local svCursor = Instance.new("Frame")
+		svCursor.Size             = UDim2.new(0,8,0,8)
+		svCursor.Position         = UDim2.new(curS,-4,1-curV,-4)
+		svCursor.BackgroundColor3 = Color3.fromRGB(255,255,255)
+		svCursor.BorderSizePixel  = 0
+		svCursor.ZIndex           = 7
+		svCursor.Parent           = svBox
+		corner(svCursor, 4)
+		stroke(svCursor, Color3.fromRGB(0,0,0), 1, 0)
+
+		-- Preview swatch (right side, same height as svBox)
+		local prevW = 1 - SV_W_FRAC
+		local preview = Instance.new("Frame")
+		preview.Size             = UDim2.new(prevW,-10,0,PREV_H)
+		preview.Position         = UDim2.new(SV_W_FRAC,3,0,PREV_TOP)
+		preview.BackgroundColor3 = defaultColor
+		preview.BorderSizePixel  = 0
+		preview.ZIndex           = 4
+		preview.Parent           = panel
+		corner(preview, 3)
+		stroke(preview, C.borderBt, 1, 0)
+
+		-- Checkerboard pattern under preview (shows opacity)
+		-- We approximate with a UIGradient on a background frame
+		local checkBg = Instance.new("Frame")
+		checkBg.Size             = UDim2.fromScale(1,1)
+		checkBg.BackgroundColor3 = Color3.fromRGB(180,180,180)
+		checkBg.BorderSizePixel  = 0
+		checkBg.ZIndex           = 3
+		checkBg.Parent           = preview
+		corner(checkBg, 3)
+		do
+			local g = Instance.new("UIGradient")
+			g.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0,   Color3.fromRGB(160,160,160)),
+				ColorSequenceKeypoint.new(0.5, Color3.fromRGB(200,200,200)),
+				ColorSequenceKeypoint.new(1,   Color3.fromRGB(160,160,160)),
+			})
+			g.Rotation = 45
+			g.Parent   = checkBg
+		end
+
+		-- The actual color overlay on top of checkBg
+		local prevColor = Instance.new("Frame")
+		prevColor.Size             = UDim2.fromScale(1,1)
+		prevColor.BackgroundColor3 = defaultColor
+		prevColor.BackgroundTransparency = 1 - defaultOpacity
+		prevColor.BorderSizePixel  = 0
+		prevColor.ZIndex           = 4
+		prevColor.Parent           = preview
+		corner(prevColor, 3)
+
+		-- Hex label under preview
+		local hexLbl = Instance.new("TextLabel")
+		hexLbl.Size                   = UDim2.new(prevW,-10,0,12)
+		hexLbl.Position               = UDim2.new(SV_W_FRAC,3,0,PREV_TOP+PREV_H+2)
+		hexLbl.BackgroundTransparency = 1
+		hexLbl.Font                   = FONT_REG
+		hexLbl.TextSize               = 9
+		hexLbl.TextColor3             = C.textDim
+		hexLbl.Text                   = ""
+		hexLbl.ZIndex                 = 4
+		hexLbl.Parent                 = panel
+
+		-- Brightness slider row
+		local brRow = Instance.new("Frame")
+		brRow.Size             = UDim2.new(1,-10,0,20)
+		brRow.Position         = UDim2.new(0,5,0,BR_TOP)
+		brRow.BackgroundTransparency = 1
+		brRow.ZIndex           = 4
+		brRow.Parent           = panel
+
+		local brLbl = Instance.new("TextLabel")
+		brLbl.Text                   = "Brightness"
+		brLbl.Font                   = FONT_REG
+		brLbl.TextSize               = 10
+		brLbl.TextColor3             = C.textDim
+		brLbl.BackgroundTransparency = 1
+		brLbl.Size                   = UDim2.new(0.38,0,1,0)
+		brLbl.TextXAlignment         = Enum.TextXAlignment.Left
+		brLbl.ZIndex                 = 4
+		brLbl.Parent                 = brRow
+
+		local brTrack = Instance.new("Frame")
+		brTrack.Size             = UDim2.new(0.58,0,0,4)
+		brTrack.Position         = UDim2.new(0.38,0,0.5,-2)
+		brTrack.BackgroundColor3 = Color3.fromRGB(24,24,24)
+		brTrack.BorderSizePixel  = 0
+		brTrack.ZIndex           = 4
+		brTrack.Parent           = brRow
+		corner(brTrack, 2)
+		do
+			local g = Instance.new("UIGradient")
+			g.Color    = ColorSequence.new(Color3.fromRGB(0,0,0), Color3.fromRGB(255,255,255))
+			g.Rotation = 0
+			g.Parent   = brTrack
+		end
+
+		local brKnob = Instance.new("TextButton")
+		brKnob.Size             = UDim2.new(0,9,0,9)
+		brKnob.Position         = UDim2.new(curV,-4,0.5,-4)
+		brKnob.BackgroundColor3 = Color3.fromRGB(230,230,230)
+		brKnob.BorderSizePixel  = 0
+		brKnob.Text             = ""
+		brKnob.AutoButtonColor  = false
+		brKnob.ZIndex           = 6
+		brKnob.Parent           = brTrack
+		corner(brKnob, 4)
+		stroke(brKnob, Color3.fromRGB(80,80,80), 1, 0)
+
+		local brValLbl = Instance.new("TextLabel")
+		brValLbl.Text                   = math.floor(curV*100).."%"
+		brValLbl.Font                   = FONT_REG
+		brValLbl.TextSize               = 9
+		brValLbl.TextColor3             = C.textDim
+		brValLbl.BackgroundTransparency = 1
+		brValLbl.Size                   = UDim2.new(0,28,1,0)
+		brValLbl.Position               = UDim2.new(1,-28,0,0)
+		brValLbl.TextXAlignment         = Enum.TextXAlignment.Right
+		brValLbl.ZIndex                 = 4
+		brValLbl.Parent                 = brRow
+
+		-- Opacity slider row
+		local opRow = Instance.new("Frame")
+		opRow.Size             = UDim2.new(1,-10,0,20)
+		opRow.Position         = UDim2.new(0,5,0,OP_TOP)
+		opRow.BackgroundTransparency = 1
+		opRow.ZIndex           = 4
+		opRow.Parent           = panel
+
+		local opLbl = Instance.new("TextLabel")
+		opLbl.Text                   = "Opacity"
+		opLbl.Font                   = FONT_REG
+		opLbl.TextSize               = 10
+		opLbl.TextColor3             = C.textDim
+		opLbl.BackgroundTransparency = 1
+		opLbl.Size                   = UDim2.new(0.38,0,1,0)
+		opLbl.TextXAlignment         = Enum.TextXAlignment.Left
+		opLbl.ZIndex                 = 4
+		opLbl.Parent                 = opRow
+
+		local opTrack = Instance.new("Frame")
+		opTrack.Size             = UDim2.new(0.58,0,0,4)
+		opTrack.Position         = UDim2.new(0.38,0,0.5,-2)
+		opTrack.BackgroundColor3 = Color3.fromRGB(24,24,24)
+		opTrack.BorderSizePixel  = 0
+		opTrack.ZIndex           = 4
+		opTrack.Parent           = opRow
+		corner(opTrack, 2)
+		do
+			-- Checkerboard→color gradient (transparent→opaque of current color)
+			local g = Instance.new("UIGradient")
+			g.Color = ColorSequence.new(Color3.fromRGB(60,60,60), defaultColor)
+			g.Rotation = 0
+			g.Parent   = opTrack
+		end
+
+		local opKnob = Instance.new("TextButton")
+		opKnob.Size             = UDim2.new(0,9,0,9)
+		opKnob.Position         = UDim2.new(curOpacity,-4,0.5,-4)
+		opKnob.BackgroundColor3 = Color3.fromRGB(230,230,230)
+		opKnob.BorderSizePixel  = 0
+		opKnob.Text             = ""
+		opKnob.AutoButtonColor  = false
+		opKnob.ZIndex           = 6
+		opKnob.Parent           = opTrack
+		corner(opKnob, 4)
+		stroke(opKnob, Color3.fromRGB(80,80,80), 1, 0)
+
+		local opValLbl = Instance.new("TextLabel")
+		opValLbl.Text                   = math.floor(curOpacity*100).."%"
+		opValLbl.Font                   = FONT_REG
+		opValLbl.TextSize               = 9
+		opValLbl.TextColor3             = C.textDim
+		opValLbl.BackgroundTransparency = 1
+		opValLbl.Size                   = UDim2.new(0,28,1,0)
+		opValLbl.Position               = UDim2.new(1,-28,0,0)
+		opValLbl.TextXAlignment         = Enum.TextXAlignment.Right
+		opValLbl.ZIndex                 = 4
+		opValLbl.Parent                 = opRow
+
+		-- ── state update helpers ────────────────────────────────
+		local function getColor()
+			return Color3.fromHSV(curH, curS, curV)
+		end
+
+		local function refreshAll()
+			local c = getColor()
+			-- Update SV box hue
+			svBox.BackgroundColor3 = Color3.fromHSV(curH,1,1)
+			for _, child in ipairs(svBox:GetChildren()) do
+				if child:IsA("UIGradient") then
+					child.Color = ColorSequence.new(Color3.fromRGB(255,255,255), Color3.fromHSV(curH,1,1))
+				end
+			end
+			-- Update SV cursor
+			svCursor.Position = UDim2.new(curS,-4,1-curV,-4)
+			-- Update hue cursor
+			hueCursor.Position = UDim2.new(curH,-1,0,-2)
+			-- Update brightness knob & label
+			brKnob.Position = UDim2.new(curV,-4,0.5,-4)
+			brValLbl.Text   = math.floor(curV*100).."%"
+			-- Update opacity knob & label
+			opKnob.Position = UDim2.new(curOpacity,-4,0.5,-4)
+			opValLbl.Text   = math.floor(curOpacity*100).."%"
+			-- Update opacity track gradient color
+			for _, child in ipairs(opTrack:GetChildren()) do
+				if child:IsA("UIGradient") then
+					child.Color = ColorSequence.new(Color3.fromRGB(60,60,60), c)
+				end
+			end
+			-- Update previews
+			prevColor.BackgroundColor3       = c
+			prevColor.BackgroundTransparency = 1 - curOpacity
+			swatchPreview.BackgroundColor3   = c
+			-- Callback
+			if callback then callback(c, curOpacity) end
+		end
+
+		-- ── interaction: hue bar ───────────────────────────────
+		local hueDrag = false
+		hueBar.InputBegan:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+				hueDrag = true
+				local p = math.clamp((inp.Position.X - hueBar.AbsolutePosition.X) / hueBar.AbsoluteSize.X, 0, 1)
+				curH = p
+				refreshAll()
+			end
+		end)
+		UIS.InputChanged:Connect(function(inp)
+			if hueDrag and inp.UserInputType == Enum.UserInputType.MouseMovement then
+				local p = math.clamp((inp.Position.X - hueBar.AbsolutePosition.X) / hueBar.AbsoluteSize.X, 0, 1)
+				curH = p
+				refreshAll()
+			end
+		end)
+		UIS.InputEnded:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 then hueDrag = false end
+		end)
+
+		-- ── interaction: SV square ────────────────────────────
+		local svDrag = false
+		svBox.InputBegan:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+				svDrag = true
+				curS = math.clamp((inp.Position.X - svBox.AbsolutePosition.X) / svBox.AbsoluteSize.X, 0, 1)
+				curV = 1 - math.clamp((inp.Position.Y - svBox.AbsolutePosition.Y) / svBox.AbsoluteSize.Y, 0, 1)
+				refreshAll()
+			end
+		end)
+		UIS.InputChanged:Connect(function(inp)
+			if svDrag and inp.UserInputType == Enum.UserInputType.MouseMovement then
+				curS = math.clamp((inp.Position.X - svBox.AbsolutePosition.X) / svBox.AbsoluteSize.X, 0, 1)
+				curV = 1 - math.clamp((inp.Position.Y - svBox.AbsolutePosition.Y) / svBox.AbsoluteSize.Y, 0, 1)
+				refreshAll()
+			end
+		end)
+		UIS.InputEnded:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 then svDrag = false end
+		end)
+
+		-- ── interaction: brightness knob ──────────────────────
+		local brDrag = false
+		brKnob.MouseButton1Down:Connect(function() brDrag = true end)
+		UIS.InputChanged:Connect(function(inp)
+			if brDrag and inp.UserInputType == Enum.UserInputType.MouseMovement then
+				curV = math.clamp((inp.Position.X - brTrack.AbsolutePosition.X) / brTrack.AbsoluteSize.X, 0, 1)
+				refreshAll()
+			end
+		end)
+		UIS.InputEnded:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 then brDrag = false end
+		end)
+
+		-- ── interaction: opacity knob ─────────────────────────
+		local opDrag = false
+		opKnob.MouseButton1Down:Connect(function() opDrag = true end)
+		UIS.InputChanged:Connect(function(inp)
+			if opDrag and inp.UserInputType == Enum.UserInputType.MouseMovement then
+				curOpacity = math.clamp((inp.Position.X - opTrack.AbsolutePosition.X) / opTrack.AbsoluteSize.X, 0, 1)
+				refreshAll()
+			end
+		end)
+		UIS.InputEnded:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 then opDrag = false end
+		end)
+
+		-- ── open / close panel ────────────────────────────────
+		local function openCP()
+			isOpen = true
+			panel.Visible = true
+			panel.Size    = UDim2.new(1,-12,0,0)
+			tw(panel,     {Size=UDim2.new(1,-12,0,PANEL_H)}, MED):Play()
+			tw(cpArrow,   {Rotation=180}):Play()
+			shiftBelow(posY, PANEL_H + 4)
+		end
+
+		local function closeCP()
+			isOpen = false
+			tw(panel,   {Size=UDim2.new(1,-12,0,0)}, MED):Play()
+			tw(cpArrow, {Rotation=0}):Play()
+			task.delay(0.24, function() panel.Visible = false end)
+			shiftBelow(posY, -(PANEL_H + 4))
+		end
+
+		local toggleBtn = Instance.new("TextButton")
+		toggleBtn.Size             = UDim2.fromScale(1,1)
+		toggleBtn.BackgroundTransparency = 1
+		toggleBtn.Text             = ""
+		toggleBtn.ZIndex           = 5
+		toggleBtn.Parent           = headerRow
+		toggleBtn.MouseButton1Click:Connect(function()
+			if isOpen then closeCP() else openCP() end
+		end)
+
+		self._y = posY + headerH + 4
+		return self
+	end
+
+	-- ================================================================
+	--  ExpandableCheckbox  ── NEW COMPONENT
+	-- ================================================================
+	-- A checkbox that, when turned ON, expands a sub-panel beneath it.
+	-- The sub-panel is built using a nested column object.
+	--
+	-- Usage:
+	--   col:ExpandableCheckbox("Enemies", false, nil, function(subCol)
+	--       subCol:ColorPicker("Color",  Color3.fromRGB(255,60,60),  1.0)
+	--       subCol:Slider("Thickness",   1, 10, 2)
+	--   end)
+	--
+	-- subBuilder : function(subCol)   — called ONCE to populate the panel.
+	-- callback   : function(checked) — called when the toggle changes.
+	-- ================================================================
+	function col:ExpandableCheckbox(labelText, default, callback, subBuilder)
+		-- ── checkbox row (always visible) ─────────────────────
+		local posY = self._y
+		local row  = makeRow(posY, 22)
+
+		local box = Instance.new("TextButton")
+		box.Size             = UDim2.new(0,14,0,14)
+		box.Position         = UDim2.new(0,0,0.5,-7)
+		box.BackgroundColor3 = default and rgbColor or C.checkOff
+		box.BorderSizePixel  = 0
+		box.Text             = ""
+		box.AutoButtonColor  = false
+		box.ZIndex           = 4
+		box.Parent           = row
+		corner(box, 0)
+		local boxStroke = stroke(box, default and rgbColor or C.border, 1)
+
+		local boxRgbCb, strokeRgbCb
+		local function startRGB()
+			if boxRgbCb then return end
+			boxRgbCb    = bindRGB(box,       "BackgroundColor3")
+			strokeRgbCb = bindRGB(boxStroke, "Color")
+		end
+		local function stopRGB()
+			if boxRgbCb then
+				for i, cb in ipairs(RGBCallbacks) do
+					if cb == boxRgbCb or cb == strokeRgbCb then
+						table.remove(RGBCallbacks, i)
+					end
+				end
+				boxRgbCb = nil; strokeRgbCb = nil
+			end
+		end
+		if default then startRGB() end
+
+		local tick = Instance.new("TextLabel")
+		tick.Text                   = "✓"
+		tick.Font                   = FONT_BOLD
+		tick.TextSize               = 9
+		tick.TextColor3             = C.textBright
+		tick.BackgroundTransparency = 1
+		tick.Size                   = UDim2.fromScale(1,1)
+		tick.TextXAlignment         = Enum.TextXAlignment.Center
+		tick.TextYAlignment         = Enum.TextYAlignment.Center
+		tick.Visible                = default or false
+		tick.ZIndex                 = 5
+		tick.Parent                 = box
+
+		local lbl = Instance.new("TextLabel")
+		lbl.Text                   = labelText
+		lbl.Font                   = FONT_REG
+		lbl.TextSize               = 12
+		lbl.TextColor3             = default and rgbColor or C.text
+		lbl.BackgroundTransparency = 1
+		lbl.Size                   = UDim2.new(1,-36,1,0)
+		lbl.Position               = UDim2.new(0,20,0,0)
+		lbl.TextXAlignment         = Enum.TextXAlignment.Left
+		lbl.ZIndex                 = 4
+		lbl.Parent                 = row
+
+		-- Expand arrow (right side)
+		local expArrow = Instance.new("TextLabel")
+		expArrow.Text                   = "▾"
+		expArrow.Font                   = FONT_BOLD
+		expArrow.TextSize               = 10
+		expArrow.TextColor3             = C.textDim
+		expArrow.BackgroundTransparency = 1
+		expArrow.Size                   = UDim2.new(0,16,1,0)
+		expArrow.Position               = UDim2.new(1,-18,0,0)
+		expArrow.TextXAlignment         = Enum.TextXAlignment.Center
+		expArrow.ZIndex                 = 4
+		expArrow.Parent                 = row
+
+		local lblRgbCb
+		local function startLblRGB()
+			if lblRgbCb then return end
+			lblRgbCb = bindRGB(lbl, "TextColor3")
+		end
+		local function stopLblRGB()
+			if lblRgbCb then
+				for i, cb in ipairs(RGBCallbacks) do
+					if cb == lblRgbCb then table.remove(RGBCallbacks, i) break end
+				end
+				lblRgbCb = nil
+			end
+		end
+		if default then startLblRGB() end
+
+		-- ── sub-panel (hidden until checked) ──────────────────
+		local subPanel = Instance.new("Frame")
+		subPanel.Size             = UDim2.new(1,-12,0,0)
+		subPanel.Position         = UDim2.new(0,6,0,posY + 26)
+		subPanel.BackgroundColor3 = Color3.fromRGB(12,12,12)
+		subPanel.BorderSizePixel  = 0
+		subPanel.ClipsDescendants = true
+		subPanel.Visible          = false
+		subPanel.ZIndex           = 3
+		subPanel.Parent           = sf
+		corner(subPanel, 0)
+		stroke(subPanel, C.border, 1, 0.5)
+		regItem(subPanel, posY + 26)
+
+		-- Build a mini ScrollingFrame inside the sub-panel
+		local subSF = Instance.new("ScrollingFrame")
+		subSF.Size                   = UDim2.fromScale(1,1)
+		subSF.BackgroundTransparency = 1
+		subSF.BorderSizePixel        = 0
+		subSF.ScrollBarThickness     = 2
+		subSF.ScrollBarImageColor3   = rgbColor
+		subSF.CanvasSize             = UDim2.new(0,0,0,2000)
+		subSF.ZIndex                 = 2
+		subSF.Parent                 = subPanel
+		bindRGB(subSF, "ScrollBarImageColor3")
+
+		-- Build a column object for the sub-panel
+		local subReg   = {}
+		local subColObj = makeColumnObj(subSF, subReg, openDD)
+
+		-- Let caller populate the sub-panel
+		if subBuilder then subBuilder(subColObj) end
+		subColObj:Finalise()
+
+		-- Measure how tall the sub-panel content is
+		local subContentH = subColObj._y + 8
+		-- Clamp to a max so the UI doesn't explode
+		local MAX_SUB_H = 200
+		local panelH    = math.min(subContentH, MAX_SUB_H)
+		subSF.CanvasSize = UDim2.new(0,0,0,subContentH)
+
+		local expanded = false
+
+		local function openSub()
+			expanded = true
+			subPanel.Visible = true
+			subPanel.Size    = UDim2.new(1,-12,0,0)
+			tw(subPanel, {Size=UDim2.new(1,-12,0,panelH)}, MED):Play()
+			tw(expArrow, {Rotation=180}):Play()
+			shiftBelow(posY, panelH + 2)
+		end
+
+		local function closeSub()
+			expanded = false
+			tw(subPanel, {Size=UDim2.new(1,-12,0,0)}, MED):Play()
+			tw(expArrow, {Rotation=0}):Play()
+			task.delay(0.24, function() subPanel.Visible = false end)
+			shiftBelow(posY, -(panelH + 2))
+		end
+
+		local checked = default or false
+
+		box.MouseButton1Click:Connect(function()
+			checked = not checked
+			tick.Visible = checked
+			if checked then
+				startRGB()
+				startLblRGB()
+				openSub()
+			else
+				stopRGB()
+				stopLblRGB()
+				box.BackgroundColor3 = C.checkOff
+				boxStroke.Color      = C.border
+				tw(lbl, {TextColor3=C.text}):Play()
+				if expanded then closeSub() end
+			end
+			if callback then callback(checked) end
+		end)
+
+		-- Arrow also toggles expand/collapse independently of the checkbox
+		-- (so you can collapse the panel without unchecking)
+		expArrow.InputBegan:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+				if not checked then return end
+				if expanded then closeSub() else openSub() end
+			end
+		end)
+
+		row.MouseEnter:Connect(function()
+			if not checked then tw(lbl,{TextColor3=C.textBright}):Play() end
+		end)
+		row.MouseLeave:Connect(function()
+			if not checked then tw(lbl,{TextColor3=C.text}):Play() end
+		end)
+
+		self._y = posY + 28
+		return self
+	end
+
 	return col
 end
 
@@ -916,7 +1639,6 @@ function VeltaLib.new(config)
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.Parent         = guiParent
 
-	-- Outer shell
 	local outerFrame = Instance.new("Frame")
 	outerFrame.Name             = "WindowFrame"
 	outerFrame.Size             = UDim2.new(0, WIN_W+BORDER*2, 0, WIN_H+BORDER*2)
@@ -936,7 +1658,6 @@ function VeltaLib.new(config)
 	shellGrad.Parent   = outerFrame
 	stroke(outerFrame, Color3.fromRGB(80,80,80), 1, 0)
 
-	-- Inner main
 	local main = Instance.new("Frame")
 	main.Name             = "Main"
 	main.Size             = UDim2.new(1,-BORDER*2, 1,-BORDER*2)
@@ -950,7 +1671,6 @@ function VeltaLib.new(config)
 	gradient(main, C.bgTop, C.bgBot, 160)
 	stroke(main, C.borderBt, 1, 0)
 
-	-- Top accent bar — RGB
 	local topAccent = Instance.new("Frame")
 	topAccent.Size             = UDim2.new(0,80,0,2)
 	topAccent.BackgroundColor3 = rgbColor
@@ -960,7 +1680,6 @@ function VeltaLib.new(config)
 	corner(topAccent, 1)
 	bindRGB(topAccent, "BackgroundColor3")
 
-	-- Title bar
 	local titleBar = Instance.new("Frame")
 	titleBar.Name             = "TitleBar"
 	titleBar.Size             = UDim2.new(1,0,0,TITLEBAR_H)
@@ -988,7 +1707,6 @@ function VeltaLib.new(config)
 	titleSep.ZIndex           = 5
 	titleSep.Parent           = titleBar
 
-	-- Status dot — RGB
 	local statusDot = Instance.new("Frame")
 	statusDot.Size             = UDim2.new(0,6,0,6)
 	statusDot.Position         = UDim2.new(0,12,0.5,-3)
@@ -1052,7 +1770,6 @@ function VeltaLib.new(config)
 	local closeBtn    = makeWinBtn(-28, "×", Color3.fromRGB(50,12,12), C.textError)
 	local minimizeBtn = makeWinBtn(-52, "−", Color3.fromRGB(36,32,8),  C.yellow)
 
-	-- Restore pill
 	local restorePill = Instance.new("TextButton")
 	restorePill.Size             = UDim2.new(0,120,0,26)
 	restorePill.Position         = UDim2.new(0.5,-60,0,-40)
@@ -1113,12 +1830,9 @@ function VeltaLib.new(config)
 		end
 	end)
 	UIS.InputEnded:Connect(function(inp)
-		if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-			pillDragging = false
-		end
+		if inp.UserInputType == Enum.UserInputType.MouseButton1 then pillDragging = false end
 	end)
 
-	-- Confirm dialog
 	local blurOverlay = Instance.new("Frame")
 	blurOverlay.Size                   = UDim2.fromScale(1,1)
 	blurOverlay.BackgroundColor3       = Color3.fromRGB(0,0,0)
@@ -1244,7 +1958,6 @@ function VeltaLib.new(config)
 	end)
 	closeBtn.MouseButton1Click:Connect(openDialog)
 
-	-- Minimize / Restore
 	local function minimize()
 		menuVisible = false
 		tw(outerFrame,{BackgroundTransparency=1},MED):Play()
@@ -1276,7 +1989,6 @@ function VeltaLib.new(config)
 		end
 	end)
 
-	-- Title bar drag
 	local dragging, dragStart, dragStartPos = false, nil, nil
 	titleBar.InputBegan:Connect(function(inp)
 		if inp.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -1297,7 +2009,6 @@ function VeltaLib.new(config)
 		if inp.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
 	end)
 
-	-- Resize handle
 	local resizeHandle = Instance.new("TextButton")
 	resizeHandle.Size                   = UDim2.new(0,20,0,20)
 	resizeHandle.Position               = UDim2.new(1,-18,1,-18)
@@ -1348,7 +2059,6 @@ function VeltaLib.new(config)
 		tw(resizeGlyph, {TextColor3=C.textDim}):Play()
 	end)
 
-	-- Sidebar
 	local sidebar = Instance.new("Frame")
 	sidebar.Name             = "Sidebar"
 	sidebar.Size             = UDim2.new(0,SIDEBAR_OW,1,-TITLEBAR_H)
@@ -1443,7 +2153,6 @@ function VeltaLib.new(config)
 		tw(sideToggleBtn,{BackgroundColor3=Color3.fromRGB(14,14,14), TextColor3=C.textDim}):Play()
 	end)
 
-	-- Content area
 	local contentArea = Instance.new("Frame")
 	contentArea.Name                   = "ContentArea"
 	contentArea.Size                   = UDim2.new(1,-(SIDEBAR_OW+1),1,-TITLEBAR_H)
@@ -1460,7 +2169,6 @@ function VeltaLib.new(config)
 		for _, d in ipairs(win._tabButtons) do
 			local active = d.name == name
 			tw(d.btn,     {BackgroundColor3 = active and C.tabActive or C.tabInact}):Play()
-			-- Icon gets RGB when active, dim when not
 			if active then
 				if not d._iconRgb then
 					d._iconRgb = bindRGB(d.iconLbl, "TextColor3")
@@ -1474,7 +2182,6 @@ function VeltaLib.new(config)
 					d.iconLbl.TextColor3 = C.textDim
 				end
 			end
-			-- Accent bar RGB
 			if active then
 				if not d._accentRgb then
 					d._accentRgb = bindRGB(d.accent, "BackgroundColor3")
@@ -1511,7 +2218,6 @@ function VeltaLib.new(config)
 
 	sideToggleBtn.MouseButton1Click:Connect(function() setSidebar(not sidebarOpen) end)
 
-	-- Tab buttons
 	local TAB_BTN_H = 34
 	local tabDefs   = config.Tabs or {}
 	if #tabDefs > 0 then win._activeTab = tabDefs[1].Name end
@@ -1547,7 +2253,6 @@ function VeltaLib.new(config)
 		accent.ZIndex           = 7
 		accent.Parent           = btn
 		corner(accent, 0)
-		-- start RGB on first-tab accent immediately
 		if def.Name == win._activeTab then
 			bindRGB(accent, "BackgroundColor3")
 		end
@@ -1591,7 +2296,6 @@ function VeltaLib.new(config)
 			name=def.Name, btn=btn, iconLbl=iconLbl, lbl=lbl, accent=accent,
 			_iconRgb=nil, _accentRgb=nil
 		}
-		-- start RGB callbacks for the initial active tab
 		if def.Name == win._activeTab then
 			data._iconRgb   = bindRGB(iconLbl, "TextColor3")
 			data._accentRgb = bindRGB(accent,  "BackgroundColor3")
@@ -1616,10 +2320,8 @@ function VeltaLib.new(config)
 		end)
 	end
 
-	-- Show the first tab on load
 	if win._activeTab then showTab(win._activeTab) end
 
-	-- Public method
 	function win:GetTab(name)
 		local panel = self._tabPanels[name]
 		assert(panel, "Tab '" .. tostring(name) .. "' not found. Check config.Tabs.")
