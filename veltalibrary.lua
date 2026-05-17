@@ -1,4 +1,4 @@
--- VeltaLibrary.lua
+-- VeltaLibrary.lua  (full rewrite — fixes swatch disappear, scroll clamp, dropdown/picker overlap)
 -- Educational / cosmetic demonstration only — no functional game hooks.
 
 local Players      = game:GetService("Players")
