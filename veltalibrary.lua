@@ -1,119 +1,47 @@
 -- VeltaLibrary.lua
 -- Reusable GUI library for Velta-style mod menu UIs.
 -- Educational / cosmetic demonstration only — no functional game hooks.
+-- Usage: local Velta = loadstring(game:HttpGet("YOUR_RAW_GITHUB_URL"))()
 
 local Players      = game:GetService("Players")
 local UIS          = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local RunService   = game:GetService("RunService")
 
 -- ============================================================
---  THEME  (violet → RGB rainbow via animation; all backgrounds
---          now use rich multi-stop gradients)
+--  THEME
 -- ============================================================
 local C = {
-	-- shell / outer frame
-	shellLight = Color3.fromRGB(80,  80,  90),
-	shellMid   = Color3.fromRGB(38,  38,  45),
-	shellDark  = Color3.fromRGB(14,  14,  18),
-	-- main background — dark-steel with a visible cool-to-warm gradient
-	bgTop      = Color3.fromRGB(28,  28,  38),
-	bgMid      = Color3.fromRGB(18,  18,  24),
-	bgBot      = Color3.fromRGB(10,  10,  14),
-	-- panels
-	panel      = Color3.fromRGB(22,  22,  30),
-	panelHover = Color3.fromRGB(32,  32,  42),
-	-- borders
-	border     = Color3.fromRGB(48,  48,  58),
-	borderBt   = Color3.fromRGB(68,  68,  80),
-	-- text
-	textBright = Color3.fromRGB(245, 245, 248),
-	text       = Color3.fromRGB(185, 185, 200),
-	textDim    = Color3.fromRGB(90,  90,  108),
-	textError  = Color3.fromRGB(220, 60,  60),
-	header     = Color3.fromRGB(210, 210, 225),
-	-- tabs / rows
-	tabActive  = Color3.fromRGB(26,  26,  36),
-	tabInact   = Color3.fromRGB(14,  14,  20),
-	rowBg      = Color3.fromRGB(20,  20,  28),
-	rowBgLight = Color3.fromRGB(30,  30,  42),
-	-- controls (non-RGB)
-	dropBg     = Color3.fromRGB(14,  14,  20),
-	sliderKnob = Color3.fromRGB(230, 230, 235),
-	keyBg      = Color3.fromRGB(22,  22,  32),
-	yellow     = Color3.fromRGB(230, 190, 50),
-	sidebarBg  = Color3.fromRGB(11,  11,  16),
-	-- RGB stand-ins (initial; overwritten by animation every frame)
-	rgb        = Color3.fromRGB(255, 80,  80),
-	rgbDim     = Color3.fromRGB(160, 40,  40),
-	rgbGlow    = Color3.fromRGB(255, 150, 150),
+	shellLight = Color3.fromRGB(120,120,120),
+	shellMid   = Color3.fromRGB(72, 72, 72),
+	shellDark  = Color3.fromRGB(40, 40, 40),
+	bgTop      = Color3.fromRGB(50, 50, 50),
+	bgBot      = Color3.fromRGB(50, 50, 50),
+	panel      = Color3.fromRGB(20, 20, 20),
+	panelHover = Color3.fromRGB(28, 28, 28),
+	violet     = Color3.fromRGB(140,70, 240),
+	violetDim  = Color3.fromRGB(90, 45, 160),
+	violetGlow = Color3.fromRGB(175,110,255),
+	border     = Color3.fromRGB(42, 42, 42),
+	borderBt   = Color3.fromRGB(62, 62, 62),
+	textBright = Color3.fromRGB(245,245,245),
+	text       = Color3.fromRGB(190,190,190),
+	textDim    = Color3.fromRGB(95, 95, 95),
+	textError  = Color3.fromRGB(220,60, 60),
+	header     = Color3.fromRGB(215,215,215),
+	tabActive  = Color3.fromRGB(24, 24, 24),
+	tabInact   = Color3.fromRGB(14, 14, 14),
+	checkOn    = Color3.fromRGB(130,60, 230),
+	checkOff   = Color3.fromRGB(18, 18, 18),
+	dropBg     = Color3.fromRGB(14, 14, 14),
+	sliderFill = Color3.fromRGB(130,60, 230),
+	sliderKnob = Color3.fromRGB(230,230,230),
+	keyBg      = Color3.fromRGB(100,40, 200),
+	yellow     = Color3.fromRGB(230,190,50),
+	sidebarBg  = Color3.fromRGB(12, 12, 12),
+	rowBg      = Color3.fromRGB(20, 20, 20),
+	rowBgLight = Color3.fromRGB(28, 28, 28),
 }
 
--- ── RGB rainbow helper ──────────────────────────────────────
---  hue cycles 0→1 over `period` seconds
-local function hueToRGB(h)
-	h = h % 1
-	local r,g,b
-	local i = math.floor(h*6)
-	local f = h*6 - i
-	local p,q,t = 0, 1-f, f
-	if     i%6==0 then r,g,b=1,t,p
-	elseif i%6==1 then r,g,b=q,1,p
-	elseif i%6==2 then r,g,b=p,1,t
-	elseif i%6==3 then r,g,b=p,q,1
-	elseif i%6==4 then r,g,b=t,p,1
-	else               r,g,b=1,p,q
-	end
-	return Color3.new(r,g,b)
-end
-
---  All RGB-animated instances are collected here so the
---  single RunService heartbeat can drive them all.
-local rgbTargets = {
-	full  = {},   -- set .BackgroundColor3  to rgb
-	dim   = {},   -- set .BackgroundColor3  to rgbDim
-	glow  = {},   -- set .TextColor3        to rgbGlow  (TextLabel / TextButton)
-	stroke= {},   -- set .Color             (UIStroke)
-	grad  = {},   -- {inst=UIGradient, offset=number}  animated gradient
-	bar   = {},   -- small accent Frame — BackgroundColor3 to rgb
-}
-
-local RBG_PERIOD = 4   -- seconds for one full hue cycle
-
-RunService.Heartbeat:Connect(function()
-	local t   = tick() / RBG_PERIOD
-	local h0  = t % 1
-	local rgb  = hueToRGB(h0)
-	local rgbD = hueToRGB((h0 + 0.08) % 1):Lerp(Color3.fromRGB(0,0,0), 0.45)
-	local rgbG = hueToRGB((h0 - 0.05) % 1):Lerp(Color3.fromRGB(255,255,255), 0.30)
-
-	for _, v in ipairs(rgbTargets.full)   do if v and v.Parent then v.BackgroundColor3 = rgb  end end
-	for _, v in ipairs(rgbTargets.dim)    do if v and v.Parent then v.BackgroundColor3 = rgbD end end
-	for _, v in ipairs(rgbTargets.glow)   do if v and v.Parent then v.TextColor3       = rgbG end end
-	for _, v in ipairs(rgbTargets.stroke) do if v and v.Parent then v.Color            = rgb  end end
-	for _, v in ipairs(rgbTargets.bar)    do if v and v.Parent then v.BackgroundColor3 = rgb  end end
-
-	-- animated UIGradients: two-hue sweep
-	for _, e in ipairs(rgbTargets.grad) do
-		if e.inst and e.inst.Parent then
-			local h1 = (h0 + e.offset) % 1
-			e.inst.Color = ColorSequence.new(hueToRGB(h0), hueToRGB(h1))
-		end
-	end
-end)
-
-local function rgbRegFull(inst)   table.insert(rgbTargets.full,   inst) end
-local function rgbRegDim(inst)    table.insert(rgbTargets.dim,    inst) end
-local function rgbRegGlow(inst)   table.insert(rgbTargets.glow,   inst) end
-local function rgbRegStroke(inst) table.insert(rgbTargets.stroke, inst) end
-local function rgbRegBar(inst)    table.insert(rgbTargets.bar,    inst) end
-local function rgbRegGrad(inst, offset)
-	table.insert(rgbTargets.grad, {inst=inst, offset=offset or 0.33})
-end
-
--- ============================================================
---  MISC CONSTANTS
--- ============================================================
 local FONT_REG  = Enum.Font.Code
 local FONT_BOLD = Enum.Font.Code
 local FONT_SCI  = Enum.Font.SciFi
@@ -142,7 +70,6 @@ local function stroke(inst, col, thick, trans)
 	s.Parent       = inst
 	return s
 end
--- Static gradient (non-RGB backgrounds)
 local function gradient(inst, c0, c1, rot)
 	local g = Instance.new("UIGradient")
 	g.Color    = ColorSequence.new(c0, c1)
@@ -150,23 +77,15 @@ local function gradient(inst, c0, c1, rot)
 	g.Parent   = inst
 	return g
 end
--- Three-stop static gradient
-local function gradient3(inst, c0, c1, c2, rot)
-	local g = Instance.new("UIGradient")
-	g.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0,   c0),
-		ColorSequenceKeypoint.new(0.5, c1),
-		ColorSequenceKeypoint.new(1,   c2),
-	})
-	g.Rotation = rot or 90
-	g.Parent   = inst
-	return g
-end
 
 -- ============================================================
 --  COLUMN OBJECT
+--  registry : plain table shared across a whole window
+--             registry[sf] = { {frame, baseY, extra}, ... }
+--  openDD   : {fn = nil}  shared ref to current open-dropdown closer
 -- ============================================================
 local function makeColumnObj(sf, registry, openDD)
+	-- ensure this scrolling frame has a registry slot
 	if not registry[sf] then registry[sf] = {} end
 
 	local function regItem(frame, baseY)
@@ -194,13 +113,13 @@ local function makeColumnObj(sf, registry, openDD)
 		row.ZIndex           = 3
 		row.Parent           = sf
 		corner(row, 0)
-		-- Visible dark-to-mid-panel gradient on every row
+		stroke(row, C.border, 1, 0.4)
 		gradient(row, C.rowBgLight, C.rowBg, 180)
-		local s = stroke(row, C.border, 1, 0.35)
 		regItem(row, posY)
-		return row, s
+		return row
 	end
 
+	-- public column object
 	local col = { _sf = sf, _y = 8 }
 
 	function col:Finalise()
@@ -231,15 +150,10 @@ local function makeColumnObj(sf, registry, openDD)
 		local bar = Instance.new("Frame")
 		bar.Size             = UDim2.new(1,0,0,1)
 		bar.Position         = UDim2.new(0,0,0,15)
-		bar.BackgroundColor3 = C.rgb
+		bar.BackgroundColor3 = C.borderBt
 		bar.BorderSizePixel  = 0
 		bar.ZIndex           = 3
 		bar.Parent           = wrap
-		-- Animate the header separator bar with RGB gradient
-		local bg = Instance.new("UIGradient")
-		bg.Rotation = 0
-		bg.Parent   = bar
-		rgbRegGrad(bg, 0.5)
 
 		self._y = posY + 22
 		return self
@@ -268,20 +182,15 @@ local function makeColumnObj(sf, registry, openDD)
 		local box = Instance.new("TextButton")
 		box.Size             = UDim2.new(0,14,0,14)
 		box.Position         = UDim2.new(0,0,0.5,-7)
-		box.BackgroundColor3 = default and C.rgb or C.dropBg
+		box.BackgroundColor3 = default and C.checkOn or C.checkOff
 		box.BorderSizePixel  = 0
 		box.Text             = ""
 		box.AutoButtonColor  = false
 		box.ZIndex           = 4
 		box.Parent           = row
 		corner(box, 0)
-		local boxStroke = stroke(box, default and C.rgb or C.border, 1)
-		local boxGrad
-		if default then
-			boxGrad = Instance.new("UIGradient"); boxGrad.Rotation = 135; boxGrad.Parent = box
-			rgbRegGrad(boxGrad, 0.4)
-			rgbRegStroke(boxStroke)
-		end
+		local boxStroke = stroke(box, default and C.violet or C.border, 1)
+		if default then gradient(box, C.violet, C.violetDim, 135) end
 
 		local tick = Instance.new("TextLabel")
 		tick.Text                   = "✓"
@@ -300,31 +209,31 @@ local function makeColumnObj(sf, registry, openDD)
 		lbl.Text                   = labelText
 		lbl.Font                   = FONT_REG
 		lbl.TextSize               = 12
-		lbl.TextColor3             = default and C.rgbGlow or C.text
+		lbl.TextColor3             = default and C.violetGlow or C.text
 		lbl.BackgroundTransparency = 1
 		lbl.Size                   = UDim2.new(1,-20,1,0)
 		lbl.Position               = UDim2.new(0,20,0,0)
 		lbl.TextXAlignment         = Enum.TextXAlignment.Left
 		lbl.ZIndex                 = 4
 		lbl.Parent                 = row
-		if default then rgbRegGlow(lbl) end
 
 		local checked = default or false
 		box.MouseButton1Click:Connect(function()
 			checked = not checked
 			tick.Visible = checked
 			if checked then
-				-- remove from glow list first to avoid duplicates
-				boxGrad = Instance.new("UIGradient"); boxGrad.Rotation = 135; boxGrad.Parent = box
-				rgbRegGrad(boxGrad, 0.4)
-				rgbRegStroke(boxStroke)
-				rgbRegGlow(lbl)
+				box.BackgroundColor3 = C.checkOn
+				boxStroke.Color = C.violet
+				if not box:FindFirstChildWhichIsA("UIGradient") then
+					gradient(box, C.violet, C.violetDim, 135)
+				end
+				tw(lbl, {TextColor3=C.violetGlow}):Play()
 			else
+				box.BackgroundColor3 = C.checkOff
 				boxStroke.Color = C.border
 				local g = box:FindFirstChildWhichIsA("UIGradient")
 				if g then g:Destroy() end
-				box.BackgroundColor3 = C.dropBg
-				lbl.TextColor3 = C.text
+				tw(lbl, {TextColor3=C.text}):Play()
 			end
 			if callback then callback(checked) end
 		end)
@@ -340,6 +249,7 @@ local function makeColumnObj(sf, registry, openDD)
 	end
 
 	-- ── Dropdown ───────────────────────────────────────────
+	-- Pass "" as labelText for a full-width dropdown
 	function col:Dropdown(labelText, options, default, callback)
 		local posY   = self._y
 		local COUNT  = #options
@@ -355,8 +265,8 @@ local function makeColumnObj(sf, registry, openDD)
 		container.ZIndex           = 3
 		container.Parent           = sf
 		corner(container, 0)
+		stroke(container, C.border, 1, 0.4)
 		gradient(container, C.rowBgLight, C.rowBg, 180)
-		stroke(container, C.border, 1, 0.35)
 		regItem(container, posY)
 
 		if labelText ~= "" then
@@ -386,7 +296,7 @@ local function makeColumnObj(sf, registry, openDD)
 		btn.Parent           = container
 		corner(btn, 0)
 		local btnStroke = stroke(btn, C.border, 1)
-		gradient(btn, Color3.fromRGB(26,26,36), Color3.fromRGB(14,14,20), 180)
+		gradient(btn, Color3.fromRGB(22,22,22), Color3.fromRGB(12,12,12), 180)
 
 		local selIdx = 1
 		for i, v in ipairs(options) do
@@ -420,7 +330,7 @@ local function makeColumnObj(sf, registry, openDD)
 		local listFrame = Instance.new("Frame")
 		listFrame.Size             = UDim2.new(btnW,0,0,0)
 		listFrame.Position         = UDim2.new(btnX,0,0,24)
-		listFrame.BackgroundColor3 = Color3.fromRGB(16,16,22)
+		listFrame.BackgroundColor3 = Color3.fromRGB(16,16,16)
 		listFrame.BorderSizePixel  = 0
 		listFrame.ClipsDescendants = true
 		listFrame.Visible          = false
@@ -428,11 +338,11 @@ local function makeColumnObj(sf, registry, openDD)
 		listFrame.Parent           = container
 		corner(listFrame, 0)
 		stroke(listFrame, C.borderBt, 1, 0.2)
-		gradient(listFrame, Color3.fromRGB(26,26,36), Color3.fromRGB(12,12,18), 180)
+		gradient(listFrame, Color3.fromRGB(22,22,22), Color3.fromRGB(12,12,12), 180)
 
 		local function closeDD()
-			isOpen    = false
-			openDD.fn = nil
+			isOpen       = false
+			openDD.fn    = nil
 			tw(arrow,     {Rotation=0,   TextColor3=C.textDim}):Play()
 			tw(listFrame, {Size=UDim2.new(btnW,0,0,0)}, MED):Play()
 			tw(btn,       {BackgroundColor3=C.dropBg}):Play()
@@ -448,10 +358,9 @@ local function makeColumnObj(sf, registry, openDD)
 			openDD.fn = closeDD
 			listFrame.Visible = true
 			listFrame.Size    = UDim2.new(btnW,0,0,0)
-			tw(arrow,     {Rotation=180}):Play()
-			rgbRegGlow(arrow)
+			tw(arrow,     {Rotation=180, TextColor3=C.violet}):Play()
 			tw(listFrame, {Size=UDim2.new(btnW,0,0,LIST_H)}, MED):Play()
-			tw(btn,       {BackgroundColor3=Color3.fromRGB(26,26,36)}):Play()
+			tw(btn,       {BackgroundColor3=Color3.fromRGB(22,22,22)}):Play()
 			tw(btnStroke, {Color=C.borderBt}):Play()
 			container.Size = UDim2.new(1,-12,0,22+LIST_H)
 			shiftBelow(posY, LIST_H)
@@ -471,26 +380,24 @@ local function makeColumnObj(sf, registry, openDD)
 			local selBar = Instance.new("Frame")
 			selBar.Size             = UDim2.new(0,2,0.55,0)
 			selBar.Position         = UDim2.new(0,2,0.22,0)
-			selBar.BackgroundColor3 = C.rgb
+			selBar.BackgroundColor3 = C.violet
 			selBar.BorderSizePixel  = 0
 			selBar.Visible          = (i == selIdx)
 			selBar.ZIndex           = 22
 			selBar.Parent           = optBtn
 			corner(selBar, 0)
-			if i == selIdx then rgbRegBar(selBar) end
 
 			local optLbl = Instance.new("TextLabel")
 			optLbl.Text                   = optText
 			optLbl.Font                   = FONT_REG
 			optLbl.TextSize               = 11
-			optLbl.TextColor3             = (i == selIdx) and C.rgbGlow or C.text
+			optLbl.TextColor3             = (i == selIdx) and C.violetGlow or C.text
 			optLbl.BackgroundTransparency = 1
 			optLbl.Size                   = UDim2.new(1,-14,1,0)
 			optLbl.Position               = UDim2.new(0,12,0,0)
 			optLbl.TextXAlignment         = Enum.TextXAlignment.Left
 			optLbl.ZIndex                 = 22
 			optLbl.Parent                 = optBtn
-			if i == selIdx then rgbRegGlow(optLbl) end
 
 			if i < COUNT then
 				local sep = Instance.new("Frame")
@@ -506,7 +413,7 @@ local function makeColumnObj(sf, registry, openDD)
 			optBtn.MouseEnter:Connect(function()
 				if i ~= selIdx then
 					optBtn.BackgroundTransparency = 0
-					optBtn.BackgroundColor3       = Color3.fromRGB(30,26,40)
+					optBtn.BackgroundColor3       = Color3.fromRGB(28,24,38)
 					tw(optLbl, {TextColor3=C.textBright}):Play()
 				end
 			end)
@@ -518,6 +425,7 @@ local function makeColumnObj(sf, registry, openDD)
 			end)
 
 			optBtn.MouseButton1Click:Connect(function()
+				-- reset all rows
 				for _, child in ipairs(listFrame:GetChildren()) do
 					if child:IsA("TextButton") then
 						child.BackgroundTransparency = 1
@@ -530,10 +438,8 @@ local function makeColumnObj(sf, registry, openDD)
 				end
 				selIdx            = i
 				selLbl.Text       = optText
-				optLbl.TextColor3 = C.rgbGlow
-				rgbRegGlow(optLbl)
+				optLbl.TextColor3 = C.violetGlow
 				selBar.Visible    = true
-				rgbRegBar(selBar)
 				closeDD()
 				if callback then callback(optText, i) end
 			end)
@@ -544,7 +450,7 @@ local function makeColumnObj(sf, registry, openDD)
 		end)
 		btn.MouseEnter:Connect(function()
 			if not isOpen then
-				tw(btn,       {BackgroundColor3=Color3.fromRGB(26,26,36)}):Play()
+				tw(btn,       {BackgroundColor3=Color3.fromRGB(22,22,22)}):Play()
 				tw(btnStroke, {Color=C.borderBt}):Play()
 			end
 		end)
@@ -579,19 +485,18 @@ local function makeColumnObj(sf, registry, openDD)
 		valLbl.Text                   = tostring(default)
 		valLbl.Font                   = FONT_REG
 		valLbl.TextSize               = 10
-		valLbl.TextColor3             = C.rgbGlow
+		valLbl.TextColor3             = C.violetGlow
 		valLbl.BackgroundTransparency = 1
 		valLbl.Size                   = UDim2.new(0.13,0,1,0)
 		valLbl.Position               = UDim2.new(0.87,0,0,0)
 		valLbl.TextXAlignment         = Enum.TextXAlignment.Right
 		valLbl.ZIndex                 = 4
 		valLbl.Parent                 = row
-		rgbRegGlow(valLbl)
 
 		local track = Instance.new("Frame")
 		track.Size             = UDim2.new(0.42,0,0,4)
 		track.Position         = UDim2.new(0.43,0,0.5,-2)
-		track.BackgroundColor3 = Color3.fromRGB(20,20,28)
+		track.BackgroundColor3 = Color3.fromRGB(24,24,24)
 		track.BorderSizePixel  = 0
 		track.ZIndex           = 4
 		track.Parent           = row
@@ -602,16 +507,12 @@ local function makeColumnObj(sf, registry, openDD)
 
 		local fill = Instance.new("Frame")
 		fill.Size             = UDim2.new(pct,0,1,0)
-		fill.BackgroundColor3 = C.rgb
+		fill.BackgroundColor3 = C.sliderFill
 		fill.BorderSizePixel  = 0
 		fill.ZIndex           = 5
 		fill.Parent           = track
 		corner(fill, 0)
-		-- RGB animated gradient on slider fill
-		local fillGrad = Instance.new("UIGradient")
-		fillGrad.Rotation = 0
-		fillGrad.Parent   = fill
-		rgbRegGrad(fillGrad, 0.45)
+		gradient(fill, C.violetGlow, C.violet, 0)
 
 		local knob = Instance.new("TextButton")
 		knob.Size             = UDim2.new(0,10,0,10)
@@ -623,8 +524,7 @@ local function makeColumnObj(sf, registry, openDD)
 		knob.ZIndex           = 6
 		knob.Parent           = track
 		corner(knob, 5)
-		local knobStroke = stroke(knob, C.border, 1)
-		rgbRegStroke(knobStroke)
+		stroke(knob, C.violetDim, 1)
 
 		local dragging = false
 		knob.MouseButton1Down:Connect(function() dragging = true end)
@@ -680,17 +580,14 @@ local function makeColumnObj(sf, registry, openDD)
 		keyBtn.ZIndex           = 4
 		keyBtn.Parent           = row
 		corner(keyBtn, 0)
-		local ks = stroke(keyBtn, C.border, 1, 0.2)
-		rgbRegStroke(ks)
-		-- RGB gradient background for key badge
-		local kg = Instance.new("UIGradient"); kg.Rotation = 135; kg.Parent = keyBtn
-		rgbRegGrad(kg, 0.5)
+		stroke(keyBtn, C.violetDim, 1, 0.2)
+		gradient(keyBtn, C.violet, C.violetDim, 135)
 
 		self._y = posY + 26
 		return self
 	end
 
-	-- ── KeyDisplay ─────────────────────────────────────────
+	-- ── KeyDisplay (standalone full-width key badge) ────────
 	function col:KeyDisplay(key)
 		local posY = self._y
 		local keyD = Instance.new("TextButton")
@@ -706,10 +603,8 @@ local function makeColumnObj(sf, registry, openDD)
 		keyD.ZIndex           = 3
 		keyD.Parent           = sf
 		corner(keyD, 0)
-		local kds = stroke(keyD, C.border, 1, 0.2)
-		rgbRegStroke(kds)
-		local kdg = Instance.new("UIGradient"); kdg.Rotation = 135; kdg.Parent = keyD
-		rgbRegGrad(kdg, 0.5)
+		stroke(keyD, C.violetDim, 1, 0.2)
+		gradient(keyD, C.violet, C.violetDim, 135)
 		regItem(keyD, posY)
 		self._y = posY + 28
 		return self
@@ -750,19 +645,15 @@ local function makeColumnObj(sf, registry, openDD)
 			local box = Instance.new("TextButton")
 			box.Size             = UDim2.new(0,13,0,13)
 			box.Position         = UDim2.new(xScale,0,0.5,-6)
-			box.BackgroundColor3 = default and C.rgb or C.dropBg
+			box.BackgroundColor3 = default and C.checkOn or C.checkOff
 			box.BorderSizePixel  = 0
 			box.Text             = ""
 			box.AutoButtonColor  = false
 			box.ZIndex           = 4
 			box.Parent           = row
 			corner(box, 0)
-			local bStr = stroke(box, default and C.rgb or C.border, 1)
-			local bg
-			if default then
-				bg = Instance.new("UIGradient"); bg.Rotation = 135; bg.Parent = box
-				rgbRegGrad(bg, 0.4); rgbRegStroke(bStr)
-			end
+			local boxStroke = stroke(box, default and C.violet or C.border, 1)
+			if default then gradient(box, C.violet, C.violetDim, 135) end
 
 			local tick = Instance.new("TextLabel")
 			tick.Text                   = "✓"
@@ -781,28 +672,31 @@ local function makeColumnObj(sf, registry, openDD)
 			minilbl.Text                   = text
 			minilbl.Font                   = FONT_REG
 			minilbl.TextSize               = 11
-			minilbl.TextColor3             = default and C.rgbGlow or C.text
+			minilbl.TextColor3             = default and C.violetGlow or C.text
 			minilbl.BackgroundTransparency = 1
 			minilbl.Size                   = UDim2.new(0.44,0,1,0)
 			minilbl.Position               = UDim2.new(xScale + 0.04, 0, 0, 0)
 			minilbl.TextXAlignment         = Enum.TextXAlignment.Left
 			minilbl.ZIndex                 = 4
 			minilbl.Parent                 = row
-			if default then rgbRegGlow(minilbl) end
 
 			local checked = default
 			box.MouseButton1Click:Connect(function()
 				checked = not checked
 				tick.Visible = checked
 				if checked then
-					bg = Instance.new("UIGradient"); bg.Rotation = 135; bg.Parent = box
-					rgbRegGrad(bg, 0.4); rgbRegStroke(bStr); rgbRegGlow(minilbl)
+					box.BackgroundColor3 = C.checkOn
+					boxStroke.Color = C.violet
+					if not box:FindFirstChildWhichIsA("UIGradient") then
+						gradient(box, C.violet, C.violetDim, 135)
+					end
+					tw(minilbl, {TextColor3=C.violetGlow}):Play()
 				else
-					bStr.Color = C.border
+					box.BackgroundColor3 = C.checkOff
+					boxStroke.Color = C.border
 					local g = box:FindFirstChildWhichIsA("UIGradient")
 					if g then g:Destroy() end
-					box.BackgroundColor3 = C.dropBg
-					minilbl.TextColor3 = C.text
+					tw(minilbl, {TextColor3=C.text}):Play()
 				end
 				if cb then cb(checked) end
 			end)
@@ -836,16 +730,10 @@ local function makeTabObj(panel, registry, openDD)
 		sf.BackgroundTransparency = 1
 		sf.BorderSizePixel        = 0
 		sf.ScrollBarThickness     = 2
-		sf.ScrollBarImageColor3   = C.rgb
+		sf.ScrollBarImageColor3   = C.violet
 		sf.CanvasSize             = UDim2.new(0,0,0,2000)
 		sf.ZIndex                 = 2
 		sf.Parent                 = panel
-		-- Animate scroll bar colour
-		RunService.Heartbeat:Connect(function()
-			if sf and sf.Parent then
-				sf.ScrollBarImageColor3 = hueToRGB((tick()/RBG_PERIOD)%1)
-			end
-		end)
 		return sf
 	end
 
@@ -874,24 +762,25 @@ local function makeTabObj(panel, registry, openDD)
 end
 
 -- ============================================================
---  PUBLIC API
+--  PUBLIC API — VeltaLib.new(config)
 -- ============================================================
 local VeltaLib = {}
 
 function VeltaLib.new(config)
+	-- Per-window state — no class methods, everything is a plain table + closures
 	local win         = {}
 	win._tabPanels    = {}
 	win._tabButtons   = {}
 	win._activeTab    = nil
-	local registry    = {}
-	local openDD      = {fn=nil}
+	local registry    = {}       -- shared across all columns in this window
+	local openDD      = {fn=nil} -- shared open-dropdown reference
 
 	local WIN_W      = config.Width  or 880
 	local WIN_H      = config.Height or 530
 	local BORDER     = 5
 	local TITLEBAR_H = 32
-	local SIDEBAR_OW = 140
-	local SIDEBAR_CW = 36
+	local SIDEBAR_OW = 140   -- open width
+	local SIDEBAR_CW = 36    -- collapsed width
 	local WIN_MIN_W  = 600
 	local WIN_MIN_H  = 380
 	local sidebarOpen = true
@@ -906,7 +795,7 @@ function VeltaLib.new(config)
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.Parent         = guiParent
 
-	-- ── Outer shell — visible 3-stop gradient ────────────
+	-- ── Outer shell ──────────────────────────────────────
 	local outerFrame = Instance.new("Frame")
 	outerFrame.Name             = "WindowFrame"
 	outerFrame.Size             = UDim2.new(0, WIN_W+BORDER*2, 0, WIN_H+BORDER*2)
@@ -916,37 +805,40 @@ function VeltaLib.new(config)
 	outerFrame.ZIndex           = 1
 	outerFrame.Parent           = gui
 	corner(outerFrame, 0)
-	gradient3(outerFrame, C.shellLight, C.shellMid, C.shellDark, 135)
-	stroke(outerFrame, Color3.fromRGB(90,90,100), 1, 0)
+	local shellGrad = Instance.new("UIGradient")
+	shellGrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0,   C.shellLight),
+		ColorSequenceKeypoint.new(0.5, C.shellMid),
+		ColorSequenceKeypoint.new(1,   C.shellDark),
+	})
+	shellGrad.Rotation = 135
+	shellGrad.Parent   = outerFrame
+	stroke(outerFrame, Color3.fromRGB(80,80,80), 1, 0)
 
-	-- ── Inner main — rich 3-stop dark-blue gradient ──────
+	-- ── Inner main ───────────────────────────────────────
 	local main = Instance.new("Frame")
 	main.Name             = "Main"
 	main.Size             = UDim2.new(1,-BORDER*2, 1,-BORDER*2)
 	main.Position         = UDim2.new(0,BORDER, 0,BORDER)
-	main.BackgroundColor3 = C.bgMid
+	main.BackgroundColor3 = C.bgTop
 	main.BorderSizePixel  = 0
 	main.ZIndex           = 2
 	main.ClipsDescendants = false
 	main.Parent           = outerFrame
 	corner(main, 0)
-	gradient3(main, C.bgTop, C.bgMid, C.bgBot, 160)
+	gradient(main, C.bgTop, C.bgBot, 160)
 	stroke(main, C.borderBt, 1, 0)
 
-	-- ── Top RGB accent bar ────────────────────────────────
 	local topAccent = Instance.new("Frame")
 	topAccent.Size             = UDim2.new(0,80,0,2)
-	topAccent.BackgroundColor3 = C.rgb
+	topAccent.BackgroundColor3 = C.violet
 	topAccent.BorderSizePixel  = 0
 	topAccent.ZIndex           = 6
 	topAccent.Parent           = main
 	corner(topAccent, 1)
-	local topAccentGrad = Instance.new("UIGradient")
-	topAccentGrad.Rotation = 0
-	topAccentGrad.Parent   = topAccent
-	rgbRegGrad(topAccentGrad, 0.5)
+	gradient(topAccent, C.violetGlow, Color3.fromRGB(20,10,40), 0)
 
-	-- ── Title bar — visible gradient panel ───────────────
+	-- ── Title bar ────────────────────────────────────────
 	local titleBar = Instance.new("Frame")
 	titleBar.Name             = "TitleBar"
 	titleBar.Size             = UDim2.new(1,0,0,TITLEBAR_H)
@@ -955,44 +847,40 @@ function VeltaLib.new(config)
 	titleBar.ZIndex           = 4
 	titleBar.Parent           = main
 	corner(titleBar, 0)
-	gradient3(titleBar, Color3.fromRGB(38,38,50), Color3.fromRGB(22,22,32), Color3.fromRGB(12,12,18), 180)
+	gradient(titleBar, Color3.fromRGB(28,28,28), Color3.fromRGB(14,14,14), 180)
 
 	local titleFlush = Instance.new("Frame")
 	titleFlush.Size             = UDim2.new(1,0,0,8)
 	titleFlush.Position         = UDim2.new(0,0,1,-8)
-	titleFlush.BackgroundColor3 = Color3.fromRGB(22,22,32)
+	titleFlush.BackgroundColor3 = C.panel
 	titleFlush.BorderSizePixel  = 0
 	titleFlush.ZIndex           = 4
 	titleFlush.Parent           = titleBar
+	gradient(titleFlush, Color3.fromRGB(28,28,28), Color3.fromRGB(14,14,14), 180)
 
 	local titleSep = Instance.new("Frame")
 	titleSep.Size             = UDim2.new(1,0,0,1)
 	titleSep.Position         = UDim2.new(0,0,1,-1)
-	titleSep.BackgroundColor3 = C.rgb
+	titleSep.BackgroundColor3 = C.borderBt
 	titleSep.BorderSizePixel  = 0
 	titleSep.ZIndex           = 5
 	titleSep.Parent           = titleBar
-	local tsg = Instance.new("UIGradient"); tsg.Rotation = 0; tsg.Parent = titleSep
-	rgbRegGrad(tsg, 0.4)
 
-	-- ── Pulsing status dot (RGB) ──────────────────────────
 	local statusDot = Instance.new("Frame")
 	statusDot.Size             = UDim2.new(0,6,0,6)
 	statusDot.Position         = UDim2.new(0,12,0.5,-3)
-	statusDot.BackgroundColor3 = C.rgb
+	statusDot.BackgroundColor3 = C.violet
 	statusDot.BorderSizePixel  = 0
 	statusDot.ZIndex           = 6
 	statusDot.Parent           = titleBar
 	corner(statusDot, 3)
-	-- Pulsing brightness on top of RGB colour
 	task.spawn(function()
 		local t = 0
 		while gui.Parent do
 			t = t + task.wait(0.05)
-			local p   = (math.sin(t * 2) + 1) / 2
-			local hue = (tick() / RBG_PERIOD) % 1
-			local base = hueToRGB(hue)
-			statusDot.BackgroundColor3 = base:Lerp(Color3.fromRGB(255,255,255), p * 0.3)
+			local p = (math.sin(t*1.4)+1)/2
+			statusDot.BackgroundColor3 = Color3.fromRGB(
+				math.floor(100+70*p), math.floor(40+30*p), math.floor(200+55*p))
 		end
 	end)
 
@@ -1024,7 +912,7 @@ function VeltaLib.new(config)
 		local b = Instance.new("TextButton")
 		b.Size             = UDim2.new(0,20,0,20)
 		b.Position         = UDim2.new(1,xOff,0.5,-10)
-		b.BackgroundColor3 = Color3.fromRGB(26,26,36)
+		b.BackgroundColor3 = Color3.fromRGB(22,22,22)
 		b.BorderSizePixel  = 0
 		b.Text             = glyph
 		b.Font             = FONT_BOLD
@@ -1040,7 +928,7 @@ function VeltaLib.new(config)
 			tw(s,{Color=hoverTxt, Transparency=0}):Play()
 		end)
 		b.MouseLeave:Connect(function()
-			tw(b,{BackgroundColor3=Color3.fromRGB(26,26,36), TextColor3=C.textDim}):Play()
+			tw(b,{BackgroundColor3=Color3.fromRGB(22,22,22), TextColor3=C.textDim}):Play()
 			tw(s,{Color=C.border, Transparency=0.4}):Play()
 		end)
 		return b
@@ -1053,7 +941,7 @@ function VeltaLib.new(config)
 	local restorePill = Instance.new("TextButton")
 	restorePill.Size             = UDim2.new(0,120,0,26)
 	restorePill.Position         = UDim2.new(0.5,-60,0,-40)
-	restorePill.BackgroundColor3 = Color3.fromRGB(16,16,22)
+	restorePill.BackgroundColor3 = Color3.fromRGB(16,16,16)
 	restorePill.BorderSizePixel  = 0
 	restorePill.Text             = ""
 	restorePill.AutoButtonColor  = false
@@ -1062,17 +950,16 @@ function VeltaLib.new(config)
 	restorePill.Parent           = gui
 	corner(restorePill, 13)
 	stroke(restorePill, C.borderBt, 1)
-	gradient(restorePill, Color3.fromRGB(30,30,42), Color3.fromRGB(12,12,18), 180)
+	gradient(restorePill, Color3.fromRGB(26,26,26), Color3.fromRGB(10,10,10), 180)
 
 	local pillDot = Instance.new("Frame")
 	pillDot.Size             = UDim2.new(0,6,0,6)
 	pillDot.Position         = UDim2.new(0,10,0.5,-3)
-	pillDot.BackgroundColor3 = C.rgb
+	pillDot.BackgroundColor3 = C.violet
 	pillDot.BorderSizePixel  = 0
 	pillDot.ZIndex           = 52
 	pillDot.Parent           = restorePill
 	corner(pillDot, 3)
-	rgbRegBar(pillDot)
 
 	local pillLabel = Instance.new("TextLabel")
 	pillLabel.Text                   = string.upper(config.Title or "VELTA.LUA")
@@ -1087,10 +974,10 @@ function VeltaLib.new(config)
 	pillLabel.Parent                 = restorePill
 
 	restorePill.MouseEnter:Connect(function()
-		tw(restorePill,{BackgroundColor3=Color3.fromRGB(30,30,42)}):Play()
+		tw(restorePill,{BackgroundColor3=Color3.fromRGB(26,26,26)}):Play()
 	end)
 	restorePill.MouseLeave:Connect(function()
-		tw(restorePill,{BackgroundColor3=Color3.fromRGB(16,16,22)}):Play()
+		tw(restorePill,{BackgroundColor3=Color3.fromRGB(16,16,16)}):Play()
 	end)
 
 	local pillDragging, pillDragStart, pillStartPos = false, nil, nil
@@ -1128,22 +1015,20 @@ function VeltaLib.new(config)
 	local confirmDialog = Instance.new("Frame")
 	confirmDialog.Size             = UDim2.new(0,300,0,158)
 	confirmDialog.Position         = UDim2.new(0.5,-150,0.5,-79)
-	confirmDialog.BackgroundColor3 = Color3.fromRGB(16,16,22)
+	confirmDialog.BackgroundColor3 = Color3.fromRGB(16,16,16)
 	confirmDialog.BorderSizePixel  = 0
 	confirmDialog.ZIndex           = 92
 	confirmDialog.Parent           = blurOverlay
 	corner(confirmDialog, 0)
-	gradient3(confirmDialog, Color3.fromRGB(28,28,40), Color3.fromRGB(16,16,24), Color3.fromRGB(8,8,12), 160)
+	gradient(confirmDialog, Color3.fromRGB(24,24,24), Color3.fromRGB(8,8,8), 160)
 	stroke(confirmDialog, C.borderBt, 1)
 
 	local dlgTop = Instance.new("Frame")
 	dlgTop.Size             = UDim2.new(1,0,0,2)
-	dlgTop.BackgroundColor3 = C.rgb
+	dlgTop.BackgroundColor3 = C.violet
 	dlgTop.BorderSizePixel  = 0
 	dlgTop.ZIndex           = 93
 	dlgTop.Parent           = confirmDialog
-	local dtg = Instance.new("UIGradient"); dtg.Rotation = 0; dtg.Parent = dlgTop
-	rgbRegGrad(dtg, 0.5)
 
 	local dlgTitle = Instance.new("TextLabel")
 	dlgTitle.Size                   = UDim2.new(1,-36,0,36)
@@ -1199,14 +1084,14 @@ function VeltaLib.new(config)
 		return b
 	end
 
-	local cancelBtn  = makeDialogBtn(14,  120, "CANCEL", Color3.fromRGB(22,22,32), C.text,      C.borderBt)
+	local cancelBtn  = makeDialogBtn(14,  120, "CANCEL", Color3.fromRGB(18,18,18), C.text,      C.borderBt)
 	local confirmBtn = makeDialogBtn(166, 120, "CLOSE",  Color3.fromRGB(28,8,8),   C.textError, C.textError)
 
 	cancelBtn.MouseEnter:Connect(function()
-		tw(cancelBtn, {BackgroundColor3=Color3.fromRGB(34,34,46),TextColor3=C.textBright}):Play()
+		tw(cancelBtn, {BackgroundColor3=Color3.fromRGB(30,30,30),TextColor3=C.textBright}):Play()
 	end)
 	cancelBtn.MouseLeave:Connect(function()
-		tw(cancelBtn, {BackgroundColor3=Color3.fromRGB(22,22,32),TextColor3=C.text}):Play()
+		tw(cancelBtn, {BackgroundColor3=Color3.fromRGB(18,18,18),TextColor3=C.text}):Play()
 	end)
 	confirmBtn.MouseEnter:Connect(function()
 		tw(confirmBtn,{BackgroundColor3=Color3.fromRGB(50,10,10)}):Play()
@@ -1299,7 +1184,7 @@ function VeltaLib.new(config)
 	local resizeHandle = Instance.new("TextButton")
 	resizeHandle.Size                   = UDim2.new(0,20,0,20)
 	resizeHandle.Position               = UDim2.new(1,-18,1,-18)
-	resizeHandle.BackgroundColor3       = Color3.fromRGB(40,40,52)
+	resizeHandle.BackgroundColor3       = Color3.fromRGB(40,40,40)
 	resizeHandle.BackgroundTransparency = 0.5
 	resizeHandle.BorderSizePixel        = 0
 	resizeHandle.Text                   = ""
@@ -1346,7 +1231,7 @@ function VeltaLib.new(config)
 		tw(resizeGlyph, {TextColor3=C.textDim}):Play()
 	end)
 
-	-- ── Sidebar — rich gradient ───────────────────────────
+	-- ── Sidebar ──────────────────────────────────────────
 	local sidebar = Instance.new("Frame")
 	sidebar.Name             = "Sidebar"
 	sidebar.Size             = UDim2.new(0,SIDEBAR_OW,1,-TITLEBAR_H)
@@ -1357,7 +1242,7 @@ function VeltaLib.new(config)
 	sidebar.ClipsDescendants = true
 	sidebar.Parent           = main
 	corner(sidebar, 0)
-	gradient3(sidebar, Color3.fromRGB(26,26,36), Color3.fromRGB(14,14,22), Color3.fromRGB(8,8,12), 180)
+	gradient(sidebar, Color3.fromRGB(22,22,22), Color3.fromRGB(10,10,10), 180)
 
 	local sideFlush = Instance.new("Frame")
 	sideFlush.Size             = UDim2.new(0,8,1,0)
@@ -1377,22 +1262,21 @@ function VeltaLib.new(config)
 
 	local sideLogoArea = Instance.new("Frame")
 	sideLogoArea.Size             = UDim2.new(1,0,0,40)
-	sideLogoArea.BackgroundColor3 = Color3.fromRGB(20,20,30)
+	sideLogoArea.BackgroundColor3 = Color3.fromRGB(18,18,18)
 	sideLogoArea.BorderSizePixel  = 0
 	sideLogoArea.ZIndex           = 5
 	sideLogoArea.Parent           = sidebar
 	corner(sideLogoArea, 0)
-	gradient3(sideLogoArea, Color3.fromRGB(36,36,50), Color3.fromRGB(18,18,28), Color3.fromRGB(10,10,16), 170)
+	gradient(sideLogoArea, Color3.fromRGB(30,30,30), Color3.fromRGB(12,12,12), 170)
 
 	local sideLogoDot = Instance.new("Frame")
 	sideLogoDot.Size             = UDim2.new(0,7,0,7)
 	sideLogoDot.Position         = UDim2.new(0,10,0.5,-3)
-	sideLogoDot.BackgroundColor3 = C.rgb
+	sideLogoDot.BackgroundColor3 = C.violet
 	sideLogoDot.BorderSizePixel  = 0
 	sideLogoDot.ZIndex           = 6
 	sideLogoDot.Parent           = sideLogoArea
 	corner(sideLogoDot, 3)
-	rgbRegBar(sideLogoDot)
 
 	local sideLogoText = Instance.new("TextLabel")
 	sideLogoText.Text                   = config.Creator or "Velta.Lua"
@@ -1409,17 +1293,15 @@ function VeltaLib.new(config)
 	local sideLogoDivider = Instance.new("Frame")
 	sideLogoDivider.Size             = UDim2.new(1,0,0,1)
 	sideLogoDivider.Position         = UDim2.new(0,0,1,-1)
-	sideLogoDivider.BackgroundColor3 = C.rgb
+	sideLogoDivider.BackgroundColor3 = C.borderBt
 	sideLogoDivider.BorderSizePixel  = 0
 	sideLogoDivider.ZIndex           = 6
 	sideLogoDivider.Parent           = sideLogoArea
-	local sldg = Instance.new("UIGradient"); sldg.Rotation = 0; sldg.Parent = sideLogoDivider
-	rgbRegGrad(sldg, 0.45)
 
 	local sideToggleBtn = Instance.new("TextButton")
 	sideToggleBtn.Size             = UDim2.new(1,0,0,28)
 	sideToggleBtn.Position         = UDim2.new(0,0,1,-28)
-	sideToggleBtn.BackgroundColor3 = Color3.fromRGB(14,14,20)
+	sideToggleBtn.BackgroundColor3 = Color3.fromRGB(14,14,14)
 	sideToggleBtn.BorderSizePixel  = 0
 	sideToggleBtn.Text             = "◀"
 	sideToggleBtn.Font             = FONT_BOLD
@@ -1437,10 +1319,10 @@ function VeltaLib.new(config)
 	stDiv.Parent           = sideToggleBtn
 
 	sideToggleBtn.MouseEnter:Connect(function()
-		tw(sideToggleBtn,{BackgroundColor3=Color3.fromRGB(28,28,40), TextColor3=C.text}):Play()
+		tw(sideToggleBtn,{BackgroundColor3=Color3.fromRGB(24,24,24), TextColor3=C.text}):Play()
 	end)
 	sideToggleBtn.MouseLeave:Connect(function()
-		tw(sideToggleBtn,{BackgroundColor3=Color3.fromRGB(14,14,20), TextColor3=C.textDim}):Play()
+		tw(sideToggleBtn,{BackgroundColor3=Color3.fromRGB(14,14,14), TextColor3=C.textDim}):Play()
 	end)
 
 	-- Content area
@@ -1453,6 +1335,7 @@ function VeltaLib.new(config)
 	contentArea.ZIndex                 = 2
 	contentArea.Parent                 = main
 
+	-- showTab (forward-declared so tab buttons can reference it)
 	local function showTab(name)
 		if openDD.fn then openDD.fn(); openDD.fn = nil end
 		for _, p in pairs(win._tabPanels) do p.Visible = false end
@@ -1460,15 +1343,9 @@ function VeltaLib.new(config)
 		for _, d in ipairs(win._tabButtons) do
 			local active = d.name == name
 			tw(d.btn,     {BackgroundColor3 = active and C.tabActive  or C.tabInact}):Play()
+			tw(d.iconLbl, {TextColor3       = active and C.violetGlow or C.textDim}):Play()
+			tw(d.lbl,     {TextColor3       = active and C.textBright  or C.textDim}):Play()
 			d.accent.Visible = active
-			-- active icon gets RGB glow
-			if active then
-				rgbRegGlow(d.iconLbl)
-				tw(d.lbl, {TextColor3=C.textBright}):Play()
-			else
-				d.iconLbl.TextColor3 = C.textDim
-				tw(d.lbl, {TextColor3=C.textDim}):Play()
-			end
 		end
 		win._activeTab = name
 	end
@@ -1517,29 +1394,26 @@ function VeltaLib.new(config)
 		btn.ZIndex           = 6
 		btn.Parent           = sidebar
 
-		-- RGB accent bar on active tab
 		local accent = Instance.new("Frame")
 		accent.Size             = UDim2.new(0,2,0.55,0)
 		accent.Position         = UDim2.new(0,0,0.22,0)
-		accent.BackgroundColor3 = C.rgb
+		accent.BackgroundColor3 = C.violet
 		accent.BorderSizePixel  = 0
 		accent.Visible          = (def.Name == win._activeTab)
 		accent.ZIndex           = 7
 		accent.Parent           = btn
 		corner(accent, 0)
-		rgbRegBar(accent)
 
 		local iconLbl = Instance.new("TextLabel")
 		iconLbl.Text                   = def.Icon or "·"
 		iconLbl.Font                   = FONT_REG
 		iconLbl.TextSize               = 14
-		iconLbl.TextColor3             = (def.Name == win._activeTab) and C.rgbGlow or C.textDim
+		iconLbl.TextColor3             = (def.Name == win._activeTab) and C.violetGlow or C.textDim
 		iconLbl.BackgroundTransparency = 1
 		iconLbl.Size                   = UDim2.new(0,SIDEBAR_CW,1,0)
 		iconLbl.TextXAlignment         = Enum.TextXAlignment.Center
 		iconLbl.ZIndex                 = 7
 		iconLbl.Parent                 = btn
-		if def.Name == win._activeTab then rgbRegGlow(iconLbl) end
 
 		local lbl = Instance.new("TextLabel")
 		lbl.Text                   = def.Name
@@ -1586,11 +1460,14 @@ function VeltaLib.new(config)
 		end)
 	end
 
+	-- Show the first tab on load
 	if win._activeTab then showTab(win._activeTab) end
 
+	-- ── Public method ────────────────────────────────────
 	function win:GetTab(name)
 		local panel = self._tabPanels[name]
 		assert(panel, "Tab '" .. tostring(name) .. "' not found. Check config.Tabs.")
+		-- pass the per-window registry and openDD by reference
 		return makeTabObj(panel, registry, openDD)
 	end
 
