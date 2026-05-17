@@ -356,15 +356,12 @@ local function makeColumnObj(sf, registry, openDD)
 		for _, e in ipairs(registry[sf]) do
 			if e.baseY > afterY then
 				e.extra = e.extra + delta
-				local newY = e.baseY + e.extra
-				local newPos = UDim2.new(
+				e.frame.Position = UDim2.new(
 					e.frame.Position.X.Scale,
 					e.frame.Position.X.Offset,
 					0,
-					newY
+					e.baseY + e.extra
 				)
-				local info = (delta < 0) and FAST or MED
-				tw(e.frame, {Position = newPos}, info):Play()
 			end
 		end
 		-- grow canvas
@@ -520,11 +517,14 @@ local function makeColumnObj(sf, registry, openDD)
 
 			swatchBtn = Instance.new("TextButton")
 			swatchBtn.Size                = UDim2.new(0, 14, 0, 14)
+			-- anchored just right of where the label ends
+			-- pin swatch to a fixed pixel Y so it doesn't shift when container height changes
 			swatchBtn.Position            = UDim2.new(0.44, -SWATCH_W, 0, 4)
 			swatchBtn.BackgroundColor3    = defColor
 			swatchBtn.BorderSizePixel     = 0
 			swatchBtn.Text                = ""
 			swatchBtn.AutoButtonColor     = false
+			-- keep the swatch above the picker/list so it never gets occluded
 			swatchBtn.ZIndex              = 60
 			swatchBtn.Parent              = container
 			corner(swatchBtn, 2)
@@ -705,8 +705,8 @@ local function makeColumnObj(sf, registry, openDD)
 				cpOpen = false
 				removeRGB(swatchRgbCb); swatchRgbCb = nil
 				swatchStroke.Color = C.borderBt
-				tw(pickerPanel, {Size=UDim2.new(1,0,0,0)}, FAST):Play()
-				task.delay(0.12, function() pickerPanel.Visible = false end)
+				tw(pickerPanel, {Size=UDim2.new(1,0,0,0)}, MED):Play()
+				task.delay(0.24, function() pickerPanel.Visible = false end)
 				local delta = -(PICKER_H + 2)
 				applyContainerSize()
 				shiftBelow(posY, delta)
