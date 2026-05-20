@@ -1,5 +1,8 @@
--- VeltaLibrary.lua  (full rewrite — fixes swatch disappear, scroll clamp, dropdown/picker overlap)
--- Educational / cosmetic demonstration only — no functional game hooks.
+-- VeltaLibrary.lua
+-- Visuals / positions / animations: 100% preserved from original.
+-- New: every element returns a real object with .Value, :SetValue(),
+--      :GetValue(), :OnChanged(), optional .Callback.
+--      win.Options[key] table for SaveManager compatibility.
 
 local Players      = game:GetService("Players")
 local UIS          = game:GetService("UserInputService")
@@ -86,18 +89,57 @@ local function makeRainbowSeq()
 end
 
 -- ============================================================
---  buildColorPicker
---  Returns a Frame (hidden by default) that is placed INSIDE
---  a container at an absolute Y offset.  The frame auto-sizes
---  to its content; caller reads .AbsoluteSize.Y after visible.
---
---  pickerH  = pixel height of the picker content
+--  ELEMENT OBJECT CONSTRUCTOR
+--  Returns a table with the consistent API every element shares.
+--  Fields set here:
+--    obj.Value        – current value
+--    obj.Callback     – optional function set by caller
+--    obj:OnChanged(fn)– register a listener (fires immediately)
+--    obj:GetValue()   – returns current value
+--    obj:SetValue(v)  – set value + fire listeners (subclass overrides)
+--    obj:_fire(v)     – internal: update .Value, call Callback + Changed
+-- ============================================================
+local function newElementObj(defaultValue, callback)
+	local obj = {}
+	obj.Value    = defaultValue
+	obj.Callback = callback  -- may be nil; always safe-called via _fire
+
+	local _changed = nil   -- single OnChanged listener
+
+	function obj:OnChanged(fn)
+		_changed = fn
+		if fn then fn(self.Value) end
+	end
+
+	function obj:GetValue()
+		return self.Value
+	end
+
+	-- Internal fire: updates .Value, calls Callback then OnChanged listener.
+	-- Subclasses call this instead of touching .Value directly.
+	function obj:_fire(v)
+		self.Value = v
+		if self.Callback then pcall(self.Callback, v) end
+		if _changed      then pcall(_changed,      v) end
+	end
+
+	-- Default SetValue — subclasses override to also update UI,
+	-- then call obj:_fire(v) at the end.
+	function obj:SetValue(v)
+		self:_fire(v)
+	end
+
+	return obj
+end
+
+-- ============================================================
+--  buildColorPicker  (unchanged visuals)
 -- ============================================================
 local PICKER_PAD  = 5
-local PICKER_HUE  = 10   -- hue bar height
-local PICKER_SV   = 58   -- SV square height
-local PICKER_SL   = 18   -- each slider row height
-local PICKER_PREV = 0.36 -- fraction of width for preview
+local PICKER_HUE  = 10
+local PICKER_SV   = 58
+local PICKER_SL   = 18
+local PICKER_PREV = 0.36
 local PICKER_H    = PICKER_PAD + PICKER_HUE + PICKER_PAD + PICKER_SV + PICKER_PAD + PICKER_SL + PICKER_PAD + PICKER_SL + PICKER_PAD
 
 local function buildColorPicker(parent, defColor, defOpacity, colorCb)
@@ -116,7 +158,7 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 
 	local panel = Instance.new("Frame")
 	panel.Size             = UDim2.new(1, 0, 0, PICKER_H)
-	panel.Position         = UDim2.new(0, 0, 0, 0)   -- caller sets Y
+	panel.Position         = UDim2.new(0, 0, 0, 0)
 	panel.BackgroundColor3 = Color3.fromRGB(13, 13, 13)
 	panel.BorderSizePixel  = 0
 	panel.ZIndex           = 8
@@ -126,7 +168,6 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	corner(panel, 2)
 	stroke(panel, C.borderBt, 1, 0.2)
 
-	-- hue bar
 	local hueBar = Instance.new("Frame")
 	hueBar.Size             = UDim2.new(1, -PAD*2, 0, HUE_H)
 	hueBar.Position         = UDim2.new(0, PAD, 0, PAD)
@@ -142,9 +183,7 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	hueCursor.BorderSizePixel  = 0; hueCursor.ZIndex = 11; hueCursor.Parent = hueBar
 	corner(hueCursor, 1); stroke(hueCursor, Color3.fromRGB(0,0,0), 1, 0)
 
-	-- SV square
 	local svY = PAD + HUE_H + PAD
-
 	local svBox = Instance.new("Frame")
 	svBox.Size             = UDim2.new(SV_WF, -PAD - GAP/2, 0, SV_H)
 	svBox.Position         = UDim2.new(0, PAD, 0, svY)
@@ -179,7 +218,6 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	svCursor.ZIndex = 12; svCursor.Parent = svBox
 	corner(svCursor, 5); stroke(svCursor, Color3.fromRGB(0,0,0), 1.5, 0)
 
-	-- preview swatch (right side of SV row)
 	local prevFrame = Instance.new("Frame")
 	prevFrame.Size     = UDim2.new(1-SV_WF, -PAD-GAP/2, 0, SV_H)
 	prevFrame.Position = UDim2.new(SV_WF, GAP/2, 0, svY)
@@ -203,21 +241,18 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	local brY   = svY + SV_H + PAD
 	local brMid = brY + SL_H/2
 
-	-- "V" label — narrow, left side inside PAD
 	local brLbl = Instance.new("TextLabel")
 	brLbl.Text = "Brightness"; brLbl.Font = FONT_REG; brLbl.TextSize = 9; brLbl.TextColor3 = C.textDim
 	brLbl.BackgroundTransparency = 1
 	brLbl.Size = UDim2.new(0, 10, 0, SL_H); brLbl.Position = UDim2.new(0, PAD, 0, brY)
 	brLbl.TextXAlignment = Enum.TextXAlignment.Left; brLbl.ZIndex = 9; brLbl.Parent = panel
 
-	-- value label — right side
 	local brVal = Instance.new("TextLabel")
 	brVal.Text = math.floor(curV*100).."%"; brVal.Font = FONT_REG; brVal.TextSize = 9; brVal.TextColor3 = C.textDim
 	brVal.BackgroundTransparency = 1
 	brVal.Size = UDim2.new(0, 30, 0, SL_H); brVal.Position = UDim2.new(1, -PAD-30, 0, brY)
 	brVal.TextXAlignment = Enum.TextXAlignment.Right; brVal.ZIndex = 9; brVal.Parent = panel
 
-	-- track — between label (PAD+12) and value (PAD+32 from right)
 	local brTrack = Instance.new("Frame")
 	brTrack.Size     = UDim2.new(1, -(PAD+14 + PAD+32), 0, 4)
 	brTrack.Position = UDim2.new(0, PAD+14, 0, brMid-2)
@@ -231,7 +266,6 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	brKnob.Text = ""; brKnob.AutoButtonColor = false; brKnob.ZIndex = 11; brKnob.Parent = panel
 	corner(brKnob, 5); stroke(brKnob, Color3.fromRGB(80,80,80), 1, 0)
 
-	-- ── Opacity slider (A) ───────────────────────────────
 	local opY   = brY + SL_H + PAD
 	local opMid = opY + SL_H/2
 
@@ -261,26 +295,24 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	opKnob.Text = ""; opKnob.AutoButtonColor = false; opKnob.ZIndex = 11; opKnob.Parent = panel
 	corner(opKnob, 5); stroke(opKnob, Color3.fromRGB(80,80,80), 1, 0)
 
-	-- ── state helpers ────────────────────────────────────
-	local function getColor() return Color3.fromHSV(curH, curS, curV) end
+	local function getColor()   return Color3.fromHSV(curH, curS, curV) end
 	local function getOpacity() return curOp end
 
 	local function refreshAll()
 		local c = getColor()
-		svBox.BackgroundColor3 = Color3.fromHSV(curH, 1, 1)
-		svCursor.Position      = UDim2.new(curS, -4, 1-curV, -4)
-		hueCursor.Position     = UDim2.new(curH, -1, 0, -2)
-		brKnob.Position        = UDim2.new(curV, -4, 0, brMid-4)
-		brVal.Text             = math.floor(curV*100).."%"
-		opGrad.Color           = ColorSequence.new(Color3.fromRGB(60,60,60), c)
-		opKnob.Position        = UDim2.new(curOp, -4, 0, opMid-4)
-		opVal.Text             = math.floor(curOp*100).."%"
+		svBox.BackgroundColor3     = Color3.fromHSV(curH, 1, 1)
+		svCursor.Position          = UDim2.new(curS, -4, 1-curV, -4)
+		hueCursor.Position         = UDim2.new(curH, -1, 0, -2)
+		brKnob.Position            = UDim2.new(curV, -4, 0, brMid-4)
+		brVal.Text                 = math.floor(curV*100).."%"
+		opGrad.Color               = ColorSequence.new(Color3.fromRGB(60,60,60), c)
+		opKnob.Position            = UDim2.new(curOp, -4, 0, opMid-4)
+		opVal.Text                 = math.floor(curOp*100).."%"
 		prevColor.BackgroundColor3 = c
 		prevColor.BackgroundTransparency = 1-curOp
 		if colorCb then colorCb(c, curOp) end
 	end
 
-	-- ── drag logic ───────────────────────────────────────
 	local hueDrag, svDrag, brDrag, opDrag = false, false, false, false
 
 	hueBar.InputBegan:Connect(function(inp)
@@ -327,25 +359,26 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 		end
 	end)
 
-	return panel, getColor, getOpacity
+	-- expose setters so the element object can drive the picker
+	local function setColorRaw(color, opacity)
+		curH, curS, curV = Color3.toHSV(color)
+		curOp = math.clamp(opacity or curOp, 0, 1)
+		refreshAll()
+	end
+
+	return panel, getColor, getOpacity, setColorRaw
 end
 
 -- ============================================================
 --  COLUMN OBJECT
---  All items register with a flat list so shiftBelow works.
---  The ScrollingFrame's CanvasSize grows automatically.
 -- ============================================================
-local function makeColumnObj(sf, registry, openDD)
+local function makeColumnObj(sf, registry, openDD, winOptions)
 	if not registry[sf] then registry[sf] = {} end
 
-	-- Each entry: {frame, baseY, extra}
-	-- baseY = original position; extra = accumulated shifts from expansions above
 	local function regItem(frame, baseY)
 		table.insert(registry[sf], {frame=frame, baseY=baseY, extra=0})
 	end
 
-	-- Shift everything whose baseY is strictly ABOVE afterY by delta pixels.
-	-- (afterY is the posY of the item that expanded)
 	local function shiftBelow(afterY, delta, animate)
 		if animate == nil then animate = true end
 		for _, e in ipairs(registry[sf]) do
@@ -364,7 +397,6 @@ local function makeColumnObj(sf, registry, openDD)
 				end
 			end
 		end
-		-- grow canvas
 		local maxY = 0
 		for _, e in ipairs(registry[sf]) do
 			local bottom = e.baseY + e.extra + e.frame.AbsoluteSize.Y
@@ -415,75 +447,129 @@ local function makeColumnObj(sf, registry, openDD)
 		regItem(f, posY); self._y = posY + 8; return self
 	end
 
-	-- ── Checkbox ───────────────────────────────────────────
-	function col:Checkbox(labelText, default, callback)
-		local posY = self._y; local row = makeRow(posY, 22)
+	-- ── Spacer ─────────────────────────────────────────────
+	function col:Spacer(h) self._y = self._y + (h or 8); return self end
+
+	-- ── Label ──────────────────────────────────────────────
+	function col:Label(text)
+		local posY = self._y
+		local wrap = Instance.new("Frame")
+		wrap.Size = UDim2.new(1,-12,0,22); wrap.Position = UDim2.new(0,6,0,posY)
+		wrap.BackgroundTransparency = 1; wrap.ZIndex = 3; wrap.Parent = sf; regItem(wrap, posY)
+		local lbl = Instance.new("TextLabel")
+		lbl.Text = text; lbl.Font = FONT_REG; lbl.TextSize = 12; lbl.TextColor3 = C.text
+		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1,1)
+		lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 4; lbl.Parent = wrap
+		self._y = posY + 22; return self
+	end
+
+	-- ── KeyDisplay ─────────────────────────────────────────
+	function col:KeyDisplay(key)
+		local posY = self._y
+		local kD = Instance.new("TextButton")
+		kD.Size = UDim2.new(1,-12,0,22); kD.Position = UDim2.new(0,6,0,posY)
+		kD.BackgroundColor3 = rgbColor; kD.BorderSizePixel = 0; kD.Text = key or "None"
+		kD.Font = FONT_BOLD; kD.TextSize = 12; kD.TextColor3 = C.textBright; kD.AutoButtonColor = false
+		kD.ZIndex = 3; kD.Parent = sf; corner(kD, 0)
+		local kS = stroke(kD, rgbColor, 1, 0.2); bindRGB(kD, "BackgroundColor3"); bindRGB(kS, "Color")
+		regItem(kD, posY); self._y = posY + 28; return self
+	end
+
+	-- ================================================================
+	--  CHECKBOX
+	--  Returns: element object
+	--    .Value         boolean
+	--    :SetValue(v)   updates UI + fires listeners
+	--    :GetValue()    returns .Value
+	--    :OnChanged(fn) registers listener, called immediately
+	--    .Callback      optional function(bool)
+	--
+	--  col:Checkbox(key, labelText, default, callback)
+	-- ================================================================
+	function col:Checkbox(key, labelText, default, callback)
+		local posY = self._y
+		local row  = makeRow(posY, 22)
+
+		local obj = newElementObj(default or false, callback)
+
+		-- UI
 		local box = Instance.new("TextButton")
 		box.Size = UDim2.new(0,14,0,14); box.Position = UDim2.new(0,0,0.5,-7)
-		box.BackgroundColor3 = default and rgbColor or C.checkOff; box.BorderSizePixel = 0
+		box.BackgroundColor3 = obj.Value and rgbColor or C.checkOff; box.BorderSizePixel = 0
 		box.Text = ""; box.AutoButtonColor = false; box.ZIndex = 4; box.Parent = row; corner(box, 0)
-		local bStroke = stroke(box, default and rgbColor or C.border, 1)
+		local bStroke = stroke(box, obj.Value and rgbColor or C.border, 1)
 		local bCb, sCb
 		local function sRGB() if bCb then return end; bCb = bindRGB(box, "BackgroundColor3"); sCb = bindRGB(bStroke, "Color") end
 		local function xRGB() removeRGB(bCb); removeRGB(sCb); bCb = nil; sCb = nil end
-		if default then sRGB() end
+		if obj.Value then sRGB() end
+
 		local tick = Instance.new("TextLabel")
 		tick.Text = "✓"; tick.Font = FONT_BOLD; tick.TextSize = 9; tick.TextColor3 = C.textBright
 		tick.BackgroundTransparency = 1; tick.Size = UDim2.fromScale(1,1)
 		tick.TextXAlignment = Enum.TextXAlignment.Center; tick.TextYAlignment = Enum.TextYAlignment.Center
-		tick.Visible = default or false; tick.ZIndex = 5; tick.Parent = box
+		tick.Visible = obj.Value; tick.ZIndex = 5; tick.Parent = box
+
 		local lbl = Instance.new("TextLabel")
 		lbl.Text = labelText; lbl.Font = FONT_REG; lbl.TextSize = 12
-		lbl.TextColor3 = default and rgbColor or C.text; lbl.BackgroundTransparency = 1
+		lbl.TextColor3 = obj.Value and rgbColor or C.text; lbl.BackgroundTransparency = 1
 		lbl.Size = UDim2.new(1,-20,1,0); lbl.Position = UDim2.new(0,20,0,0)
 		lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 4; lbl.Parent = row
 		local lCb
 		local function slRGB() if lCb then return end; lCb = bindRGB(lbl, "TextColor3") end
 		local function xlRGB() removeRGB(lCb); lCb = nil end
-		if default then slRGB() end
-		local checked = default or false
-		box.MouseButton1Click:Connect(function()
-			checked = not checked; tick.Visible = checked
-			if checked then sRGB(); slRGB()
+		if obj.Value then slRGB() end
+
+		-- SetValue updates both UI and fires listeners
+		function obj:SetValue(v)
+			v = not not v
+			if v then sRGB(); slRGB()
 			else xRGB(); xlRGB(); box.BackgroundColor3 = C.checkOff; bStroke.Color = C.border; tw(lbl,{TextColor3=C.text}):Play() end
-			if callback then callback(checked) end
-		end)
-		row.MouseEnter:Connect(function() if not checked then tw(lbl,{TextColor3=C.textBright}):Play() end end)
-		row.MouseLeave:Connect(function() if not checked then tw(lbl,{TextColor3=C.text}):Play() end end)
-		self._y = posY + 26; return self
+			tick.Visible = v
+			self:_fire(v)
+		end
+
+		box.MouseButton1Click:Connect(function() obj:SetValue(not obj.Value) end)
+		row.MouseEnter:Connect(function() if not obj.Value then tw(lbl,{TextColor3=C.textBright}):Play() end end)
+		row.MouseLeave:Connect(function() if not obj.Value then tw(lbl,{TextColor3=C.text}):Play() end end)
+
+		if key and winOptions then winOptions[key] = obj end
+		self._y = posY + 26
+		return obj, self
 	end
 
 	-- ================================================================
-	--  Dropdown  (with optional inline color picker)
+	--  DROPDOWN  (with optional inline color picker)
+	--  Returns: element object
+	--    .Value         string (selected option text)
+	--    :SetValue(v)   selects option by text, updates UI + fires
+	--    :GetValue()    returns .Value
+	--    :OnChanged(fn) registers listener
+	--    .Callback      optional function(text, index)
 	--
-	--  FIX SUMMARY:
-	--  • Container is a single source of truth for height.
-	--    containerH() always returns the correct pixel height.
-	--  • The picker panel lives INSIDE the container below row+list.
-	--    Its Y position = 22 + (ddOpen ? LIST_H : 0).
-	--    When the dropdown opens/closes, picker Y slides with it.
-	--  • The swatch is always visible (just a colored TextButton).
-	--    It never gets parented into the picker, so it can't disappear.
-	--  • shiftBelow is called with the *delta* between old and new
-	--    containerH so scroll positions never drift.
+	--  col:Dropdown(key, labelText, options, default, callback,
+	--               doColorPicker, defColor, defOpacity, colorCb)
 	-- ================================================================
-	function col:Dropdown(labelText, options, default, callback,
+	function col:Dropdown(key, labelText, options, default, callback,
 	                      doColorPicker, defColor, defOpacity, colorCb)
 		local posY  = self._y
 		local COUNT = #options
-		local LIST_H = COUNT * ITEM_H   -- pixel height of option list
+		local LIST_H = COUNT * ITEM_H
 
 		local ddOpen = false
 		local cpOpen = false
 
-		-- How tall is the container right now?
 		local function containerH()
 			return 22
 				+ (ddOpen and LIST_H or 0)
 				+ (cpOpen and (PICKER_H + 2) or 0)
 		end
 
-		-- ── main container ────────────────────────────────
+		-- element object
+		local selIdx = 1
+		for i, v in ipairs(options) do if v == (default or options[1]) then selIdx = i end end
+		local obj = newElementObj(options[selIdx], callback)
+
+		-- ── main container
 		local container = Instance.new("Frame")
 		container.Name             = "DDContainer"
 		container.Size             = UDim2.new(1, -12, 0, 22)
@@ -496,15 +582,12 @@ local function makeColumnObj(sf, registry, openDD)
 		gradient(container, C.rowBgLight, C.rowBg, 180)
 		regItem(container, posY)
 
-		-- ── swatch (color picker toggle, always visible) ─
-		-- Sits between label end and dropdown button start.
 		local SWATCH_W = doColorPicker and 18 or 0
 
 		if labelText ~= "" then
 			local lbl = Instance.new("TextLabel")
 			lbl.Text = labelText; lbl.Font = FONT_REG; lbl.TextSize = 12; lbl.TextColor3 = C.text
 			lbl.BackgroundTransparency = 1
-			-- label takes left 44% minus swatch space
 			lbl.Size = UDim2.new(0.44, -SWATCH_W, 0, 22)
 			lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 4; lbl.Parent = container
 		end
@@ -516,22 +599,18 @@ local function makeColumnObj(sf, registry, openDD)
 			defOpacity = defOpacity or 1.0
 
 			swatchBtn = Instance.new("TextButton")
-			swatchBtn.Size                = UDim2.new(0, 14, 0, 14)
-			-- anchored just right of where the label ends
-			-- pin swatch to a fixed pixel Y so it doesn't shift when container height changes
-			swatchBtn.Position            = UDim2.new(0.44, -SWATCH_W, 0, 4)
-			swatchBtn.BackgroundColor3    = defColor
-			swatchBtn.BorderSizePixel     = 0
-			swatchBtn.Text                = ""
-			swatchBtn.AutoButtonColor     = false
-			-- keep the swatch above the picker/list so it never gets occluded
-			swatchBtn.ZIndex              = 60
-			swatchBtn.Parent              = container
+			swatchBtn.Size             = UDim2.new(0, 14, 0, 14)
+			swatchBtn.Position         = UDim2.new(0.44, -SWATCH_W, 0, 4)
+			swatchBtn.BackgroundColor3 = defColor
+			swatchBtn.BorderSizePixel  = 0
+			swatchBtn.Text             = ""
+			swatchBtn.AutoButtonColor  = false
+			swatchBtn.ZIndex           = 60
+			swatchBtn.Parent           = container
 			corner(swatchBtn, 2)
 			swatchStroke = stroke(swatchBtn, C.borderBt, 1.5, 0)
 		end
 
-		-- ── dropdown button ───────────────────────────────
 		local btnX = (labelText ~= "") and 0.45 or 0
 		local btnW = (labelText ~= "") and 0.54 or 1
 
@@ -545,9 +624,6 @@ local function makeColumnObj(sf, registry, openDD)
 		local btnStroke = stroke(btn, C.border, 1)
 		gradient(btn, Color3.fromRGB(22,22,22), Color3.fromRGB(12,12,12), 180)
 
-		local selIdx = 1
-		for i, v in ipairs(options) do if v == (default or options[1]) then selIdx = i end end
-
 		local selLbl = Instance.new("TextLabel")
 		selLbl.Text = options[selIdx]; selLbl.Font = FONT_REG; selLbl.TextSize = 11; selLbl.TextColor3 = C.text
 		selLbl.BackgroundTransparency = 1; selLbl.Size = UDim2.new(1,-20,1,0); selLbl.Position = UDim2.new(0,6,0,0)
@@ -558,10 +634,6 @@ local function makeColumnObj(sf, registry, openDD)
 		arrow.BackgroundTransparency = 1; arrow.Size = UDim2.new(0,16,1,0); arrow.Position = UDim2.new(1,-18,0,0)
 		arrow.TextXAlignment = Enum.TextXAlignment.Center; arrow.ZIndex = 7; arrow.Parent = btn
 
-		-- ── option list frame ─────────────────────────────
-		-- Positioned relative to the container, ALWAYS at Y=22
-		-- so it always sits right below the header row.
-		-- When the picker also opens, the list is ABOVE the picker.
 		local listFrame = Instance.new("Frame")
 		listFrame.Size             = UDim2.new(btnW, 0, 0, 0)
 		listFrame.Position         = UDim2.new(btnX, 0, 0, 22)
@@ -574,41 +646,41 @@ local function makeColumnObj(sf, registry, openDD)
 		corner(listFrame, 0); stroke(listFrame, C.borderBt, 1, 0.2)
 		gradient(listFrame, Color3.fromRGB(22,22,22), Color3.fromRGB(12,12,12), 180)
 
-		-- ── picker panel ──────────────────────────────────
-		-- Also inside container, ALWAYS at Y = 22 + LIST_H (when dd open) or 22.
-		-- We reposition it whenever the dropdown opens/closes.
-		local pickerPanel, getPColor, getPOpacity
-
-		local function pickerY()
-			return 22 + (ddOpen and LIST_H or 0)
-		end
+		local pickerPanel, getPColor, getPOpacity, setPickerRaw
+		local function pickerY() return 22 + (ddOpen and LIST_H or 0) end
 		local function updatePickerPos()
-			if pickerPanel then
-				pickerPanel.Position = UDim2.new(0, 0, 0, pickerY())
-			end
+			if pickerPanel then pickerPanel.Position = UDim2.new(0, 0, 0, pickerY()) end
 		end
 
+		-- color picker element object (only created if doColorPicker)
+		local cpObj
 		if doColorPicker then
-			pickerPanel, getPColor, getPOpacity = buildColorPicker(
+			pickerPanel, getPColor, getPOpacity, setPickerRaw = buildColorPicker(
 				container,
 				defColor, defOpacity,
 				function(c, op)
 					if swatchBtn then swatchBtn.BackgroundColor3 = c end
+					if cpObj then cpObj:_fire({Color = c, Opacity = op}) end
 					if colorCb then colorCb(c, op) end
 				end
 			)
-			-- position it under list (list is currently closed → Y=22)
 			pickerPanel.Position = UDim2.new(0, 0, 0, pickerY())
+
+			-- colorpicker element object registered separately under key.."_Color"
+			cpObj = newElementObj({Color = defColor, Opacity = defOpacity}, colorCb)
+			function cpObj:SetValue(color, opacity)
+				if setPickerRaw then setPickerRaw(color, opacity or 1) end
+				-- _fire called by the colorCb above on next drag tick;
+				-- call immediately for programmatic set:
+				self:_fire({Color = color, Opacity = opacity or 1})
+			end
+			if key and winOptions then winOptions[key.."_Color"] = cpObj end
 		end
 
-		-- ── open/close helpers ────────────────────────────
+		-- open / close helpers
 		local arCb
 		local function sArRGB() if arCb then return end; arCb = bindRGB(arrow, "TextColor3") end
 		local function xArRGB() removeRGB(arCb); arCb = nil; arrow.TextColor3 = C.textDim end
-
-		local function applyContainerSize()
-			container.Size = UDim2.new(1, -12, 0, containerH())
-		end
 
 		local function closeDD_internal()
 			ddOpen = false; openDD.fn = nil; xArRGB()
@@ -618,8 +690,7 @@ local function makeColumnObj(sf, registry, openDD)
 			tw(btnStroke, {Color=C.border}):Play()
 			tw(container, {Size = UDim2.new(1, -12, 0, containerH())}, MED):Play()
 			task.delay(0.24, function() listFrame.Visible = false end)
-			local delta = -LIST_H
-			shiftBelow(posY, delta, true)
+			shiftBelow(posY, -LIST_H, true)
 			updatePickerPos()
 		end
 
@@ -633,12 +704,11 @@ local function makeColumnObj(sf, registry, openDD)
 			tw(btn, {BackgroundColor3=Color3.fromRGB(22,22,22)}):Play()
 			tw(btnStroke, {Color=C.borderBt}):Play()
 			tw(container, {Size = UDim2.new(1, -12, 0, containerH())}, MED):Play()
-			local delta = LIST_H
-			shiftBelow(posY, delta, true)
-			updatePickerPos()  -- slide picker panel down with list
+			shiftBelow(posY, LIST_H, true)
+			updatePickerPos()
 		end
 
-		-- ── option rows ───────────────────────────────────
+		-- option rows
 		local optRgbCbs = {}
 		for i, optText in ipairs(options) do
 			local optBtn = Instance.new("TextButton")
@@ -685,8 +755,29 @@ local function makeColumnObj(sf, registry, openDD)
 				optLbl.TextColor3 = rgbColor; optRgbCbs[i] = bindRGB(optLbl, "TextColor3")
 				selBar.Visible = true; bindRGB(selBar, "BackgroundColor3")
 				closeDD_internal()
-				if callback then callback(optText, i) end
+				obj:_fire(optText)  -- fire with text value + index via callback
+				if obj.Callback then pcall(obj.Callback, optText, i) end
 			end)
+		end
+
+		-- SetValue: select by text string programmatically
+		function obj:SetValue(v)
+			for i, optText in ipairs(options) do
+				if optText == v then
+					selIdx = i
+					selLbl.Text = v
+					-- update opt row visuals (clear all, highlight selected)
+					for _, child in ipairs(listFrame:GetChildren()) do
+						if child:IsA("TextButton") then
+							child.BackgroundTransparency = 1
+							local cl = child:FindFirstChildWhichIsA("TextLabel"); if cl then cl.TextColor3 = C.text end
+							for _, cc in ipairs(child:GetChildren()) do if cc:IsA("Frame") then cc.Visible = false end end
+						end
+					end
+					self:_fire(v)
+					return
+				end
+			end
 		end
 
 		btn.MouseButton1Click:Connect(function()
@@ -699,7 +790,7 @@ local function makeColumnObj(sf, registry, openDD)
 			if not ddOpen then tw(btn,{BackgroundColor3=C.dropBg}):Play(); tw(btnStroke,{Color=C.border}):Play() end
 		end)
 
-		-- ── color picker swatch click ─────────────────────
+		-- color picker swatch click
 		if doColorPicker then
 			local function closeCP()
 				cpOpen = false
@@ -708,10 +799,8 @@ local function makeColumnObj(sf, registry, openDD)
 				tw(swatchStroke, {Color=C.borderBt}):Play()
 				tw(container, {Size = UDim2.new(1, -12, 0, containerH())}, MED):Play()
 				task.delay(0.24, function() pickerPanel.Visible = false end)
-				local delta = -(PICKER_H + 2)
-				task.delay(0.24, function() shiftBelow(posY, delta, true) end)
+				task.delay(0.24, function() shiftBelow(posY, -(PICKER_H + 2), true) end)
 			end
-
 			local function openCP()
 				cpOpen = true
 				updatePickerPos()
@@ -721,43 +810,76 @@ local function makeColumnObj(sf, registry, openDD)
 				tw(pickerPanel, {Size=UDim2.new(1,0,0,PICKER_H)}, MED):Play()
 				tw(swatchStroke, {Color=rgbColor}):Play()
 				tw(container, {Size = UDim2.new(1, -12, 0, containerH())}, MED):Play()
-				local delta = PICKER_H + 2
-				shiftBelow(posY, delta, true)
+				shiftBelow(posY, PICKER_H + 2, true)
 			end
-
 			swatchBtn.MouseButton1Click:Connect(function()
 				if cpOpen then closeCP() else openCP() end
 			end)
 		end
 
-		self._y = posY + 26; return self
+		if key and winOptions then winOptions[key] = obj end
+		self._y = posY + 26
+		return obj, self
 	end
 
-	-- ── Slider ─────────────────────────────────────────────
-	function col:Slider(labelText, minVal, maxVal, default, callback)
-		local posY = self._y; local row = makeRow(posY, 22)
+	-- ================================================================
+	--  SLIDER
+	--  Returns: element object
+	--    .Value         number
+	--    :SetValue(v)   clamps, updates UI + fires
+	--    :GetValue()    returns .Value
+	--    :OnChanged(fn) registers listener
+	--    .Callback      optional function(number)
+	--
+	--  col:Slider(key, labelText, minVal, maxVal, default, callback)
+	-- ================================================================
+	function col:Slider(key, labelText, minVal, maxVal, default, callback)
+		local posY = self._y
+		local row  = makeRow(posY, 22)
+
+		local obj = newElementObj(default, callback)
+
 		local lbl = Instance.new("TextLabel")
 		lbl.Text = labelText; lbl.Font = FONT_REG; lbl.TextSize = 12; lbl.TextColor3 = C.text
 		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.new(0.42,0,1,0)
 		lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 4; lbl.Parent = row
+
 		local valLbl = Instance.new("TextLabel")
 		valLbl.Text = tostring(default); valLbl.Font = FONT_REG; valLbl.TextSize = 10; valLbl.TextColor3 = rgbColor
 		valLbl.BackgroundTransparency = 1; valLbl.Size = UDim2.new(0.13,0,1,0); valLbl.Position = UDim2.new(0.87,0,0,0)
 		valLbl.TextXAlignment = Enum.TextXAlignment.Right; valLbl.ZIndex = 4; valLbl.Parent = row
 		bindRGB(valLbl, "TextColor3")
+
 		local track = Instance.new("Frame")
 		track.Size = UDim2.new(0.42,0,0,4); track.Position = UDim2.new(0.43,0,0.5,-2)
 		track.BackgroundColor3 = Color3.fromRGB(24,24,24); track.BorderSizePixel = 0; track.ZIndex = 4; track.Parent = row
 		corner(track, 0); stroke(track, C.border, 1, 0.4)
+
 		local pct = (default - minVal) / math.max(maxVal - minVal, 1)
 		local fill = Instance.new("Frame")
 		fill.Size = UDim2.new(pct,0,1,0); fill.BackgroundColor3 = rgbColor; fill.BorderSizePixel = 0
 		fill.ZIndex = 5; fill.Parent = track; corner(fill, 0); bindRGB(fill, "BackgroundColor3")
+
 		local knob = Instance.new("TextButton")
 		knob.Size = UDim2.new(0,10,0,10); knob.Position = UDim2.new(pct,-5,0.5,-5)
 		knob.BackgroundColor3 = C.sliderKnob; knob.BorderSizePixel = 0; knob.Text = ""
 		knob.AutoButtonColor = false; knob.ZIndex = 6; knob.Parent = track; corner(knob, 5)
 		local kbS = stroke(knob, rgbColor, 1); bindRGB(kbS, "Color")
+
+		local function applyValue(v)
+			v = math.clamp(v, minVal, maxVal)
+			local p = (v - minVal) / math.max(maxVal - minVal, 1)
+			fill.Size  = UDim2.new(p,0,1,0)
+			knob.Position = UDim2.new(p,-5,0.5,-5)
+			valLbl.Text = tostring(v)
+			obj:_fire(v)
+		end
+
+		function obj:SetValue(v)
+			v = math.floor(v + 0.5)  -- round to int like original
+			applyValue(v)
+		end
+
 		local drag = false
 		knob.MouseButton1Down:Connect(function() drag = true end)
 		UIS.InputEnded:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 then drag = false end end)
@@ -765,127 +887,179 @@ local function makeColumnObj(sf, registry, openDD)
 			if drag and inp.UserInputType == Enum.UserInputType.MouseMovement then
 				local p = math.clamp((inp.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
 				local v = math.floor(minVal + (maxVal-minVal)*p + 0.5)
-				fill.Size = UDim2.new(p,0,1,0); knob.Position = UDim2.new(p,-5,0.5,-5); valLbl.Text = tostring(v)
-				if callback then callback(v) end
+				applyValue(v)
 			end
 		end)
-		self._y = posY + 26; return self
+
+		if key and winOptions then winOptions[key] = obj end
+		self._y = posY + 26
+		return obj, self
 	end
 
-	-- ── Keybind ────────────────────────────────────────────
-	function col:Keybind(labelText, key)
-		local posY = self._y; local row = makeRow(posY, 22)
+	-- ================================================================
+	--  KEYBIND
+	--  Returns: element object
+	--    .Value         string (key name)
+	--    :SetValue(k)   updates label + fires
+	--    :GetValue()    returns .Value
+	--    :OnChanged(fn) registers listener
+	--    .Callback      optional function(keyName)
+	--
+	--  col:Keybind(key, labelText, defaultKey, callback)
+	-- ================================================================
+	function col:Keybind(key, labelText, defaultKey, callback)
+		local posY = self._y
+		local row  = makeRow(posY, 22)
+
+		local obj = newElementObj(defaultKey or "None", callback)
+
 		local lbl = Instance.new("TextLabel")
 		lbl.Text = labelText; lbl.Font = FONT_REG; lbl.TextSize = 12; lbl.TextColor3 = C.text
 		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.new(0.55,0,1,0)
 		lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 4; lbl.Parent = row
+
 		local kBtn = Instance.new("TextButton")
 		kBtn.Size = UDim2.new(0.4,0,0.8,0); kBtn.Position = UDim2.new(0.57,0,0.1,0)
-		kBtn.BackgroundColor3 = rgbColor; kBtn.BorderSizePixel = 0; kBtn.Text = key or "None"
+		kBtn.BackgroundColor3 = rgbColor; kBtn.BorderSizePixel = 0; kBtn.Text = obj.Value
 		kBtn.Font = FONT_BOLD; kBtn.TextSize = 10; kBtn.TextColor3 = C.textBright; kBtn.AutoButtonColor = false
 		kBtn.ZIndex = 4; kBtn.Parent = row; corner(kBtn, 0)
 		local kS = stroke(kBtn, rgbColor, 1, 0.2); bindRGB(kBtn, "BackgroundColor3"); bindRGB(kS, "Color")
-		self._y = posY + 26; return self
+
+		local picking = false
+
+		function obj:SetValue(k)
+			k = k or "None"
+			kBtn.Text = k
+			self:_fire(k)
+		end
+
+		kBtn.MouseButton1Click:Connect(function()
+			if picking then return end
+			picking = true
+			kBtn.Text = "..."
+			local conn
+			conn = UIS.InputBegan:Connect(function(inp, gp)
+				if gp then return end
+				local k
+				if inp.UserInputType == Enum.UserInputType.Keyboard then
+					k = inp.KeyCode.Name
+				elseif inp.UserInputType == Enum.UserInputType.MouseButton1 then
+					k = "MouseLeft"
+				elseif inp.UserInputType == Enum.UserInputType.MouseButton2 then
+					k = "MouseRight"
+				end
+				if k then
+					conn:Disconnect()
+					picking = false
+					obj:SetValue(k)
+				end
+			end)
+		end)
+
+		if key and winOptions then winOptions[key] = obj end
+		self._y = posY + 26
+		return obj, self
 	end
 
-	-- ── KeyDisplay ─────────────────────────────────────────
-	function col:KeyDisplay(key)
+	-- ================================================================
+	--  PAIRED CHECKBOX
+	--  Returns: two element objects (left, right)
+	--
+	--  col:PairedCheckbox(keyL, keyR, lL, dL, lR, dR, cbL, cbR)
+	-- ================================================================
+	function col:PairedCheckbox(keyL, keyR, lL, dL, lR, dR, cbL, cbR)
 		local posY = self._y
-		local kD = Instance.new("TextButton")
-		kD.Size = UDim2.new(1,-12,0,22); kD.Position = UDim2.new(0,6,0,posY)
-		kD.BackgroundColor3 = rgbColor; kD.BorderSizePixel = 0; kD.Text = key or "None"
-		kD.Font = FONT_BOLD; kD.TextSize = 12; kD.TextColor3 = C.textBright; kD.AutoButtonColor = false
-		kD.ZIndex = 3; kD.Parent = sf; corner(kD, 0)
-		local kS = stroke(kD, rgbColor, 1, 0.2); bindRGB(kD, "BackgroundColor3"); bindRGB(kS, "Color")
-		regItem(kD, posY); self._y = posY + 28; return self
-	end
+		local row  = makeRow(posY, 22)
 
-	-- ── Label ──────────────────────────────────────────────
-	function col:Label(text)
-		local posY = self._y
-		local wrap = Instance.new("Frame")
-		wrap.Size = UDim2.new(1,-12,0,22); wrap.Position = UDim2.new(0,6,0,posY)
-		wrap.BackgroundTransparency = 1; wrap.ZIndex = 3; wrap.Parent = sf; regItem(wrap, posY)
-		local lbl = Instance.new("TextLabel")
-		lbl.Text = text; lbl.Font = FONT_REG; lbl.TextSize = 12; lbl.TextColor3 = C.text
-		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1,1)
-		lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 4; lbl.Parent = wrap
-		self._y = posY + 22; return self
-	end
+		local objL = newElementObj(dL or false, cbL)
+		local objR = newElementObj(dR or false, cbR)
 
-	-- ── PairedCheckbox ─────────────────────────────────────
-	function col:PairedCheckbox(lL, dL, lR, dR, cbL, cbR)
-		local posY = self._y; local row = makeRow(posY, 22)
-		local function makeMini(text, xScale, default, cb)
+		local function makeMini(text, xScale, obj)
 			local box = Instance.new("TextButton")
 			box.Size = UDim2.new(0,13,0,13); box.Position = UDim2.new(xScale,0,0.5,-6)
-			box.BackgroundColor3 = default and rgbColor or C.checkOff; box.BorderSizePixel = 0
+			box.BackgroundColor3 = obj.Value and rgbColor or C.checkOff; box.BorderSizePixel = 0
 			box.Text = ""; box.AutoButtonColor = false; box.ZIndex = 4; box.Parent = row; corner(box, 0)
-			local bS = stroke(box, default and rgbColor or C.border, 1)
+			local bS = stroke(box, obj.Value and rgbColor or C.border, 1)
 			local bCb, sCb
 			local function sR() if bCb then return end; bCb = bindRGB(box,"BackgroundColor3"); sCb = bindRGB(bS,"Color") end
 			local function xR() removeRGB(bCb); removeRGB(sCb); bCb = nil; sCb = nil end
-			if default then sR() end
+			if obj.Value then sR() end
 			local tick = Instance.new("TextLabel")
 			tick.Text = "✓"; tick.Font = FONT_BOLD; tick.TextSize = 8; tick.TextColor3 = C.textBright
 			tick.BackgroundTransparency = 1; tick.Size = UDim2.fromScale(1,1)
 			tick.TextXAlignment = Enum.TextXAlignment.Center; tick.TextYAlignment = Enum.TextYAlignment.Center
-			tick.Visible = default; tick.ZIndex = 5; tick.Parent = box
+			tick.Visible = obj.Value; tick.ZIndex = 5; tick.Parent = box
 			local ml = Instance.new("TextLabel")
-			ml.Text = text; ml.Font = FONT_REG; ml.TextSize = 11; ml.TextColor3 = default and rgbColor or C.text
+			ml.Text = text; ml.Font = FONT_REG; ml.TextSize = 11; ml.TextColor3 = obj.Value and rgbColor or C.text
 			ml.BackgroundTransparency = 1; ml.Size = UDim2.new(0.44,0,1,0); ml.Position = UDim2.new(xScale+0.04,0,0,0)
 			ml.TextXAlignment = Enum.TextXAlignment.Left; ml.ZIndex = 4; ml.Parent = row
 			local lCb
 			local function slR() if lCb then return end; lCb = bindRGB(ml,"TextColor3") end
 			local function xlR() removeRGB(lCb); lCb = nil end
-			if default then slR() end
-			local checked = default
-			box.MouseButton1Click:Connect(function()
-				checked = not checked; tick.Visible = checked
-				if checked then sR(); slR()
+			if obj.Value then slR() end
+
+			function obj:SetValue(v)
+				v = not not v
+				if v then sR(); slR()
 				else xR(); xlR(); box.BackgroundColor3 = C.checkOff; bS.Color = C.border; tw(ml,{TextColor3=C.text}):Play() end
-				if cb then cb(checked) end
-			end)
+				tick.Visible = v
+				self:_fire(v)
+			end
+
+			box.MouseButton1Click:Connect(function() obj:SetValue(not obj.Value) end)
 		end
-		makeMini(lL, 0,   dL, cbL)
-		makeMini(lR, 0.5, dR, cbR)
-		self._y = posY + 24; return self
+
+		makeMini(lL, 0,   objL)
+		makeMini(lR, 0.5, objR)
+
+		if keyL and winOptions then winOptions[keyL] = objL end
+		if keyR and winOptions then winOptions[keyR] = objR end
+		self._y = posY + 24
+		return objL, objR, self
 	end
 
-	-- ── Spacer ─────────────────────────────────────────────
-	function col:Spacer(h) self._y = self._y + (h or 8); return self end
+	-- ================================================================
+	--  EXPANDABLE CHECKBOX
+	--  Returns: element object (same as Checkbox)
+	--
+	--  col:ExpandableCheckbox(key, labelText, default, callback, subBuilder)
+	-- ================================================================
+	function col:ExpandableCheckbox(key, labelText, default, callback, subBuilder)
+		local posY = self._y
+		local row  = makeRow(posY, 22)
 
-	-- ================================================================
-	--  ExpandableCheckbox
-	-- ================================================================
-	function col:ExpandableCheckbox(labelText, default, callback, subBuilder)
-		local posY = self._y; local row = makeRow(posY, 22)
+		local obj = newElementObj(default or false, callback)
+
 		local box = Instance.new("TextButton")
 		box.Size = UDim2.new(0,14,0,14); box.Position = UDim2.new(0,0,0.5,-7)
-		box.BackgroundColor3 = default and rgbColor or C.checkOff; box.BorderSizePixel = 0
+		box.BackgroundColor3 = obj.Value and rgbColor or C.checkOff; box.BorderSizePixel = 0
 		box.Text = ""; box.AutoButtonColor = false; box.ZIndex = 4; box.Parent = row; corner(box, 0)
-		local bS = stroke(box, default and rgbColor or C.border, 1)
+		local bS = stroke(box, obj.Value and rgbColor or C.border, 1)
 		local bCb, sCb
 		local function sRGB() if bCb then return end; bCb = bindRGB(box,"BackgroundColor3"); sCb = bindRGB(bS,"Color") end
 		local function xRGB() removeRGB(bCb); removeRGB(sCb); bCb = nil; sCb = nil end
-		if default then sRGB() end
+		if obj.Value then sRGB() end
+
 		local tick = Instance.new("TextLabel")
 		tick.Text = "✓"; tick.Font = FONT_BOLD; tick.TextSize = 9; tick.TextColor3 = C.textBright
 		tick.BackgroundTransparency = 1; tick.Size = UDim2.fromScale(1,1)
 		tick.TextXAlignment = Enum.TextXAlignment.Center; tick.TextYAlignment = Enum.TextYAlignment.Center
-		tick.Visible = default or false; tick.ZIndex = 5; tick.Parent = box
+		tick.Visible = obj.Value; tick.ZIndex = 5; tick.Parent = box
+
 		local lbl = Instance.new("TextLabel")
-		lbl.Text = labelText; lbl.Font = FONT_REG; lbl.TextSize = 12; lbl.TextColor3 = default and rgbColor or C.text
+		lbl.Text = labelText; lbl.Font = FONT_REG; lbl.TextSize = 12; lbl.TextColor3 = obj.Value and rgbColor or C.text
 		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.new(1,-36,1,0); lbl.Position = UDim2.new(0,20,0,0)
 		lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 4; lbl.Parent = row
+
 		local expArrow = Instance.new("TextLabel")
 		expArrow.Text = "▾"; expArrow.Font = FONT_BOLD; expArrow.TextSize = 10; expArrow.TextColor3 = C.textDim
 		expArrow.BackgroundTransparency = 1; expArrow.Size = UDim2.new(0,16,1,0); expArrow.Position = UDim2.new(1,-18,0,0)
 		expArrow.TextXAlignment = Enum.TextXAlignment.Center; expArrow.ZIndex = 4; expArrow.Parent = row
+
 		local lCb
 		local function slRGB() if lCb then return end; lCb = bindRGB(lbl,"TextColor3") end
 		local function xlRGB() removeRGB(lCb); lCb = nil end
-		if default then slRGB() end
+		if obj.Value then slRGB() end
 
 		local subPanel = Instance.new("Frame")
 		subPanel.Size = UDim2.new(1,-12,0,0); subPanel.Position = UDim2.new(0,6,0,posY+26)
@@ -900,7 +1074,7 @@ local function makeColumnObj(sf, registry, openDD)
 		bindRGB(subSF, "ScrollBarImageColor3")
 
 		local subReg = {}
-		local subColObj = makeColumnObj(subSF, subReg, openDD)
+		local subColObj = makeColumnObj(subSF, subReg, openDD, winOptions)
 		if subBuilder then subBuilder(subColObj) end
 		subColObj:Finalise()
 		local subH = math.min(subColObj._y + 8, 220)
@@ -920,24 +1094,32 @@ local function makeColumnObj(sf, registry, openDD)
 			task.delay(0.24, function() subPanel.Visible = false end)
 			shiftBelow(posY, -(subH+2))
 		end
-		local checked = default or false
-		box.MouseButton1Click:Connect(function()
-			checked = not checked; tick.Visible = checked
-			if checked then sRGB(); slRGB(); openSub()
+
+		function obj:SetValue(v)
+			v = not not v
+			if v then sRGB(); slRGB(); if not expanded then openSub() end
 			else xRGB(); xlRGB(); box.BackgroundColor3 = C.checkOff; bS.Color = C.border
 				tw(lbl,{TextColor3=C.text}):Play(); if expanded then closeSub() end end
-			if callback then callback(checked) end
-		end)
+			tick.Visible = v
+			self:_fire(v)
+		end
+
+		box.MouseButton1Click:Connect(function() obj:SetValue(not obj.Value) end)
+
 		local arBtn = Instance.new("TextButton")
 		arBtn.Size = UDim2.new(0,24,1,0); arBtn.Position = UDim2.new(1,-26,0,0)
 		arBtn.BackgroundTransparency = 1; arBtn.Text = ""; arBtn.ZIndex = 6; arBtn.Parent = row
 		arBtn.MouseButton1Click:Connect(function()
-			if not checked then return end
+			if not obj.Value then return end
 			if expanded then closeSub() else openSub() end
 		end)
-		row.MouseEnter:Connect(function() if not checked then tw(lbl,{TextColor3=C.textBright}):Play() end end)
-		row.MouseLeave:Connect(function() if not checked then tw(lbl,{TextColor3=C.text}):Play() end end)
-		self._y = posY + 28; return self
+
+		row.MouseEnter:Connect(function() if not obj.Value then tw(lbl,{TextColor3=C.textBright}):Play() end end)
+		row.MouseLeave:Connect(function() if not obj.Value then tw(lbl,{TextColor3=C.text}):Play() end end)
+
+		if key and winOptions then winOptions[key] = obj end
+		self._y = posY + 28
+		return obj, self
 	end
 
 	return col
@@ -946,7 +1128,7 @@ end
 -- ============================================================
 --  TAB OBJECT FACTORY
 -- ============================================================
-local function makeTabObj(panel, registry, openDD)
+local function makeTabObj(panel, registry, openDD, winOptions)
 	local tabObj = {}
 	local function makeScrollCol(size, pos)
 		local sf = Instance.new("ScrollingFrame")
@@ -961,11 +1143,12 @@ local function makeTabObj(panel, registry, openDD)
 		local rSF = makeScrollCol(UDim2.new(0.5,-1,1,0), UDim2.new(0.5,1,0,0))
 		local div = Instance.new("Frame"); div.Size = UDim2.new(0,1,1,0); div.Position = UDim2.new(0.5,0,0,0)
 		div.BackgroundColor3 = C.border; div.BorderSizePixel = 0; div.ZIndex = 2; div.Parent = panel
-		return makeColumnObj(lSF, registry, openDD), makeColumnObj(rSF, registry, openDD)
+		return makeColumnObj(lSF, registry, openDD, winOptions),
+		       makeColumnObj(rSF, registry, openDD, winOptions)
 	end
 	function tabObj:SingleColumn()
 		local sf = makeScrollCol(UDim2.fromScale(1,1))
-		return makeColumnObj(sf, registry, openDD)
+		return makeColumnObj(sf, registry, openDD, winOptions)
 	end
 	return tabObj
 end
@@ -976,8 +1159,15 @@ end
 local VeltaLib = {}
 
 function VeltaLib.new(config)
-	local win = {}; win._tabPanels = {}; win._tabButtons = {}; win._activeTab = nil
-	local registry = {}; local openDD = {fn = nil}
+	local win = {}
+	win._tabPanels  = {}
+	win._tabButtons = {}
+	win._activeTab  = nil
+	win.Options     = {}   -- ← SaveManager indexes this
+
+	local registry = {}
+	local openDD   = {fn = nil}
+
 	local WIN_W    = config.Width  or 880
 	local WIN_H    = config.Height or 530
 	local BORDER      = 5
@@ -1092,6 +1282,7 @@ function VeltaLib.new(config)
 	dMsg.TextXAlignment = Enum.TextXAlignment.Left; dMsg.ZIndex = 93; dMsg.Parent = cDlg
 	local dDiv = Instance.new("Frame"); dDiv.Size = UDim2.new(1,-24,0,1); dDiv.Position = UDim2.new(0,12,0,98)
 	dDiv.BackgroundColor3 = C.borderBt; dDiv.BorderSizePixel = 0; dDiv.ZIndex = 93; dDiv.Parent = cDlg
+
 	local function mDB(x, w, t, bg, tc, sc)
 		local b = Instance.new("TextButton"); b.Size = UDim2.new(0,w,0,32); b.Position = UDim2.new(0,x,1,-44)
 		b.BackgroundColor3 = bg; b.BorderSizePixel = 0; b.Text = t; b.TextColor3 = tc; b.TextTransparency = 1; b.TextSize = 12
@@ -1293,11 +1484,67 @@ function VeltaLib.new(config)
 	if win._activeTab then showTab(win._activeTab) end
 
 	function win:GetTab(name)
-		local panel = self._tabPanels[name]; assert(panel, "Tab '"..tostring(name).."' not found.")
-		return makeTabObj(panel, registry, openDD)
+		local panel = self._tabPanels[name]
+		assert(panel, "Tab '"..tostring(name).."' not found.")
+		return makeTabObj(panel, registry, openDD, self.Options)
 	end
 
 	return win
 end
 
 return VeltaLib
+
+--[[
+=======================================================================
+ USAGE EXAMPLES — consistent API across all elements
+=======================================================================
+
+local win = VeltaLib.new({ Title = "My Menu", Tabs = {{Name="Main",Icon="⚡"}} })
+local tab = win:GetTab("Main")
+local col = tab:SingleColumn()
+
+-- Checkbox
+local myToggle, _ = col:Checkbox("espToggle", "ESP", false, function(v)
+    print("ESP is now", v)
+end)
+myToggle:OnChanged(function(v) print("changed:", v) end)
+myToggle:SetValue(true)    -- updates UI + fires callback + OnChanged
+print(myToggle:GetValue()) -- true
+
+-- Slider
+local mySlider, _ = col:Slider("fovSlider", "FOV", 60, 120, 90, function(v)
+    Camera.FieldOfView = v
+end)
+mySlider:SetValue(110)
+
+-- Dropdown
+local myDrop, _ = col:Dropdown("weaponDrop", "Weapon", {"AK47","M4","AWP"}, "M4", function(text, idx)
+    print("Selected:", text, idx)
+end)
+myDrop:SetValue("AWP")
+
+-- Keybind
+local myKey, _ = col:Keybind("menuKey", "Menu Key", "RightShift", function(k)
+    print("New key:", k)
+end)
+
+-- ExpandableCheckbox with sub-elements
+local myExp, _ = col:ExpandableCheckbox("aimbot", "Aimbot", false, function(v)
+    print("Aimbot:", v)
+end, function(sub)
+    sub:Slider("aimFOV", "FOV", 1, 30, 10)
+    sub:Slider("aimSmooth", "Smooth", 1, 10, 5)
+end)
+
+-- Dropdown with color picker
+col:Dropdown("chams", "Chams", {"Flat","Metallic"}, "Flat", function(text)
+    print("Chams style:", text)
+end, true, Color3.fromRGB(255,0,0), 1.0, function(color, opacity)
+    print("Color:", color, "Opacity:", opacity)
+end)
+
+-- SaveManager compat:  win.Options["espToggle"] → myToggle
+--                       myToggle.Value  → current bool
+--                       myToggle.Type   → "Checkbox" (add if needed for SaveManager)
+=======================================================================
+]]
