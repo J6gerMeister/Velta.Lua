@@ -595,12 +595,27 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 	-- ================================================================
 	--  CHECKBOX
 	--  Accepts both:
-	--    col:Checkbox("label", default, callback)
-	--    col:Checkbox("key", "label", default, callback)
+	--    col:Checkbox("label", default, callback [,doCP, defC, defOp, cpCb])
+	--    col:Checkbox("key","label", default, callback [,doCP, defC, defOp, cpCb])
 	-- ================================================================
-	function col:Checkbox(a1, a2, a3, a4)
-		local key, labelText, default, callback = normaliseArgs2(a1, a2, a3, a4)
-		local posY=self._y; local row=makeRow(posY,22)
+	function col:Checkbox(a1, a2, a3, a4, a5, a6, a7, a8)
+		local key,labelText,default,callback,doColorPicker,defColor,defOpacity,colorCb
+		if type(a1) == "string" and type(a2) == "string" then
+			key,labelText,default,callback,doColorPicker,defColor,defOpacity,colorCb = a1,a2,a3,a4,a5,a6,a7,a8
+		else
+			key,labelText,default,callback,doColorPicker,defColor,defOpacity,colorCb = nil,a1,a2,a3,a4,a5,a6,a7
+		end
+
+		local posY=self._y
+		local cpOpen=false
+		local function containerH() return 22+(cpOpen and (PICKER_H+2) or 0) end
+
+		local row=Instance.new("Frame")
+		row.Size=UDim2.new(1,-12,0,22); row.Position=UDim2.new(0,6,0,posY)
+		row.BackgroundColor3=C.rowBg; row.BorderSizePixel=0; row.ZIndex=3; row.Parent=sf
+		corner(row,2); stroke(row,C.borderSoft,1,0.5)
+		gradientN(row,{{0,C.rowBgAlt},{0.4,C.rowBg},{1,C.bgDeep}},180)
+		regItem(row,posY)
 		local obj=newElementObj(default or false, callback)
 
 		local box=Instance.new("TextButton"); box.Size=UDim2.new(0,13,0,13); box.Position=UDim2.new(0,4,0.5,-6)
@@ -615,8 +630,38 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 
 		local lbl=Instance.new("TextLabel"); lbl.Text=tostring(labelText); lbl.Font=FONT_REG; lbl.TextSize=12
 		lbl.TextColor3=obj.Value and C.textBright or C.textMid; lbl.BackgroundTransparency=1
-		lbl.Size=UDim2.new(1,-24,1,0); lbl.Position=UDim2.new(0,22,0,0)
+		lbl.Size=UDim2.new(1,(doColorPicker and -44 or -24),1,0); lbl.Position=UDim2.new(0,22,0,0)
 		lbl.TextXAlignment=Enum.TextXAlignment.Left; lbl.ZIndex=4; lbl.Parent=row
+
+		local swatchBtn,swatchStroke,pickerPanel,cpObj,setPickerRaw
+		if doColorPicker then
+			defColor=defColor or Color3.fromRGB(200,200,200); defOpacity=defOpacity or 1.0
+			swatchBtn=Instance.new("TextButton"); swatchBtn.Size=UDim2.new(0,13,0,13); swatchBtn.Position=UDim2.new(1,-18,0.5,-6)
+			swatchBtn.BackgroundColor3=defColor; swatchBtn.BackgroundTransparency=1-math.clamp(defOpacity,0,1)
+			swatchBtn.BorderSizePixel=0; swatchBtn.Text=""; swatchBtn.AutoButtonColor=false
+			swatchBtn.ZIndex=60; swatchBtn.Parent=row; corner(swatchBtn,2); swatchStroke=stroke(swatchBtn,C.borderHard,1.5,0)
+			local swatchBg=Instance.new("ImageLabel")
+			swatchBg.Size=UDim2.fromScale(1,1); swatchBg.Position=UDim2.new(0,0,0,0)
+			swatchBg.Image="http://www.roblox.com/asset/?id=14204231522"; swatchBg.ImageTransparency=0.45
+			swatchBg.ScaleType=Enum.ScaleType.Tile; swatchBg.TileSize=UDim2.fromOffset(6,6)
+			swatchBg.BackgroundTransparency=1; swatchBg.BorderSizePixel=0; swatchBg.ZIndex=59; swatchBg.Parent=swatchBtn
+
+			pickerPanel,_,_,setPickerRaw=buildColorPicker(row,defColor,defOpacity,function(c,op)
+				if swatchBtn then
+					swatchBtn.BackgroundColor3=c
+					swatchBtn.BackgroundTransparency=1-math.clamp(op or 1,0,1)
+				end
+				if cpObj then cpObj:_fire({Color=c,Opacity=op}) end
+				if colorCb then colorCb(c,op) end
+			end)
+			pickerPanel.Position=UDim2.new(0,0,0,22)
+			cpObj=newElementObj({Color=defColor,Opacity=defOpacity},colorCb)
+			function cpObj:SetValue(color,opacity)
+				if setPickerRaw then setPickerRaw(color,opacity or 1) end
+				self:_fire({Color=color,Opacity=opacity or 1})
+			end
+			if key and winOptions then winOptions[key.."_Color"]=cpObj end
+		end
 
 		local function applyState(v)
 			tick.Visible=v
@@ -633,6 +678,25 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 			if not obj.Value then tw(lbl,{TextColor3=C.textMid},SNAP):Play() end
 			tw(row,{BackgroundColor3=C.rowBg},SNAP):Play()
 		end)
+
+		if doColorPicker then
+			local function closeCP()
+				cpOpen=false; tw(pickerPanel,{Size=UDim2.new(1,0,0,0)},MED):Play()
+				tw(swatchStroke,{Color=C.borderHard},FAST):Play()
+				tw(row,{Size=UDim2.new(1,-12,0,containerH())},MED):Play()
+				task.delay(0.26,function() pickerPanel.Visible=false end)
+				task.delay(0.26,function() shiftBelow(posY,-(PICKER_H+2),true) end)
+			end
+			local function openCP()
+				cpOpen=true; pickerPanel.Size=UDim2.new(1,0,0,0); pickerPanel.Visible=true
+				tw(swatchStroke,{Color=C.accentMid},FAST):Play()
+				tw(pickerPanel,{Size=UDim2.new(1,0,0,PICKER_H)},SPRING):Play()
+				tw(row,{Size=UDim2.new(1,-12,0,containerH())},MED):Play()
+				shiftBelow(posY,PICKER_H+2,true)
+			end
+			swatchBtn.MouseButton1Click:Connect(function() if cpOpen then closeCP() else openCP() end end)
+		end
+
 		if key and winOptions then winOptions[key]=obj end
 		self._y=posY+26; return obj, self
 	end
