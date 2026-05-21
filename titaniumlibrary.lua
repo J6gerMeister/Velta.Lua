@@ -1156,25 +1156,9 @@ function TitaniumLib.new(config)
 	local sDot=Instance.new("Frame"); sDot.Size=UDim2.new(0,5,0,5); sDot.Position=UDim2.new(0,14,0.5,-2)
 	sDot.BackgroundColor3=C.accentDim; sDot.BorderSizePixel=0; sDot.ZIndex=6; sDot.Parent=titleBar; corner(sDot,3)
 
-	-- Title text
 	local tLbl=Instance.new("TextLabel"); tLbl.Text=config.Title or "Titanium"; tLbl.Font=FONT_BOLD; tLbl.TextSize=14
-	tLbl.TextColor3=C.textBright; tLbl.BackgroundTransparency=1; tLbl.Size=UDim2.new(0,0,1,0); tLbl.Position=UDim2.new(0,26,0,0)
+	tLbl.TextColor3=C.textBright; tLbl.BackgroundTransparency=1; tLbl.Size=UDim2.new(0,140,1,0); tLbl.Position=UDim2.new(0,26,0,0)
 	tLbl.TextXAlignment=Enum.TextXAlignment.Left; tLbl.ZIndex=6; tLbl.Parent=titleBar
-
-	-- Calculate title width to position icon next to it
-	local titleText = config.Title or "Titanium"
-	local textService = game:GetService("TextService")
-	local textSize = textService:GetTextSize(titleText, 14, FONT_BOLD, Vector2.new(9999, 36))
-	tLbl.Size = UDim2.new(0, textSize.X + 4, 1, 0)  -- +4 for padding
-
-	-- Icon next to title
-	local titleIcon = Instance.new("ImageLabel")
-	titleIcon.Size = UDim2.new(0, 18, 0, 18)
-	titleIcon.Position = UDim2.new(0, 26 + textSize.X + 6, 0.5, -9)  -- Next to title text
-	titleIcon.BackgroundTransparency = 1
-	titleIcon.Image = "rbxassetid://15699970552"
-	titleIcon.ZIndex = 6
-	titleIcon.Parent = titleBar
 
 	local vLbl=Instance.new("TextLabel"); vLbl.Text=config.SubTitle or "v1.0"; vLbl.Font=FONT_REG; vLbl.TextSize=9
 	vLbl.TextColor3=C.textDim; vLbl.BackgroundTransparency=1; vLbl.Size=UDim2.new(0,200,0,12); vLbl.Position=UDim2.new(0,168,0.5,-6)
