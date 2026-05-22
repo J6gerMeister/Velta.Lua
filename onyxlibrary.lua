@@ -5,6 +5,7 @@
 --   • minimize/restore no longer tweens GroupTransparency on a Frame (now uses regular tween).
 --   • CanvasGroup tab panels properly guarded before tweening GroupTransparency.
 -- Scale: WIN_W/WIN_H defaults bumped to 1100×662 (~1.25×).
+-- Background: Tiled mirrored image support via OnyxiteLib.buildBackground(win, assetId).
 
 local Players      = game:GetService("Players")
 local UIS          = game:GetService("UserInputService")
@@ -116,42 +117,28 @@ end
 
 -- ============================================================
 --  ARG NORMALISER
---  Allows both old-style (no key) and new-style (key first).
---
---  col:Checkbox("label", default, cb)           → key=nil
---  col:Checkbox("myKey", "label", default, cb)  → key="myKey"
---
---  Rule: if arg1 is a string AND arg2 is also a string → key, label, ...
---        otherwise                                      → nil, label, ...
 -- ============================================================
 local function normaliseArgs2(a1, a2, a3, a4)
-	-- a1=label/key, a2=default/label, a3=cb/default, a4=nil/cb
 	if type(a1) == "string" and type(a2) == "string" then
-		return a1, a2, a3, a4          -- (key, label, default, cb)
+		return a1, a2, a3, a4
 	else
-		return nil, a1, a2, a3        -- (nil, label, default, cb)
+		return nil, a1, a2, a3
 	end
 end
 
--- Dropdown has more args; same rule but shifted differently.
--- Signature: col:Dropdown([key,] label, options, default, callback [,doCP, defC, defOp, cpCb])
 local function normaliseDropArgs(a1, a2, a3, a4, a5, a6, a7, a8, a9)
 	if type(a1) == "string" and type(a2) == "string" then
-		-- new-style: key, label, options, default, callback, doCP, defC, defOp, cpCb
 		return a1, a2, a3, a4, a5, a6, a7, a8, a9
 	else
-		-- old-style: label, options, default, callback, doCP, defC, defOp, cpCb
 		return nil, a1, a2, a3, a4, a5, a6, a7, a8
 	end
 end
 
--- PairedCheckbox: col:PairedCheckbox([keyL,keyR,] lL,dL, lR,dR, cbL,cbR)
--- Detect: if arg1 is string AND arg2 is string AND arg3 is string → keys present
 local function normalisePaired(a1,a2,a3,a4,a5,a6,a7,a8)
 	if type(a1)=="string" and type(a2)=="string" and type(a3)=="string" then
-		return a1,a2,a3,a4,a5,a6,a7,a8   -- keyL,keyR,lL,dL,lR,dR,cbL,cbR
+		return a1,a2,a3,a4,a5,a6,a7,a8
 	else
-		return nil,nil,a1,a2,a3,a4,a5,a6  -- nil,nil,lL,dL,lR,dR,cbL,cbR
+		return nil,nil,a1,a2,a3,a4,a5,a6
 	end
 end
 
@@ -198,7 +185,6 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	panel.Parent = parent
 	corner(panel, 3); stroke(panel, C.borderHard, 1, 0.1)
 
-	-- SV Picker (Saturation-Value 2D selector)
 	local svBox = Instance.new("Frame")
 	svBox.Size = UDim2.new(0, 180, 0, 160)
 	svBox.Position = UDim2.new(0, 20, 0, 15)
@@ -243,7 +229,6 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	svCursor.BorderSizePixel = 0; svCursor.ZIndex = 12; svCursor.Parent = svBox; corner(svCursor, 6)
 	stroke(svCursor, Color3.fromRGB(50, 50, 50), 2, 0)
 
-	-- Hue Slider
 	local hueBar = Instance.new("Frame")
 	hueBar.Size = UDim2.new(0, 20, 0, 160)
 	hueBar.Position = UDim2.new(0, 205, 0, 15)
@@ -272,7 +257,6 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	hueCursor.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 	hueCursor.BorderSizePixel = 0; hueCursor.ZIndex = 13; hueCursor.Parent = hueBar
 
-	-- Opacity Slider  
 	local opTrack = Instance.new("Frame")
 	opTrack.Size = UDim2.new(0, 20, 0, 160)
 	opTrack.Position = UDim2.new(0, 230, 0, 15)
@@ -300,7 +284,6 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	opCursor.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
 	opCursor.BorderSizePixel = 0; opCursor.ZIndex = 13; opCursor.Parent = opTrack
 
-	-- RGB Input Fields
 	local rgbY = 185
 	local hexInput = Instance.new("TextBox")
 	hexInput.Size = UDim2.new(0, 60, 0, 20)
@@ -339,7 +322,6 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	blueInput.Font = FONT_REG; blueInput.ZIndex = 10; blueInput.Parent = panel; corner(blueInput, 2)
 	blueInput.PlaceholderText = "B"
 
-	-- Color Preview
 	local previewBox = Instance.new("Frame")
 	previewBox.Size = UDim2.new(0, 60, 0, 30)
 	previewBox.Position = UDim2.new(0, 260, 0, 185)
@@ -425,7 +407,6 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 		end
 	end)
 	
-	-- Hex input handler
 	local function normalizeHexInput(s)
 		local cleaned = string.upper((s or ""):gsub("%s+", ""))
 		if cleaned:sub(1, 1) ~= "#" then
@@ -459,7 +440,6 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 		end
 	end)
 	
-	-- RGB input handlers
 	redInput.FocusLost:Connect(function(enter)
 		if enter then
 			local r = tonumber(redInput.Text) or 0
@@ -546,7 +526,6 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 	local col={_sf=sf,_y=8}
 	function col:Finalise() self._sf.CanvasSize=UDim2.new(0,0,0,self._y+20) end
 
-	-- ── Header ──────────────────────────────────────────────
 	function col:Header(text)
 		local posY=self._y
 		local wrap=Instance.new("Frame"); wrap.Size=UDim2.new(1,-10,0,22); wrap.Position=UDim2.new(0,5,0,posY)
@@ -560,7 +539,6 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 		self._y=posY+24; return self
 	end
 
-	-- ── Separator ───────────────────────────────────────────
 	function col:Separator()
 		local posY=self._y
 		local f=Instance.new("Frame"); f.Size=UDim2.new(1,-24,0,1); f.Position=UDim2.new(0,12,0,posY)
@@ -571,7 +549,6 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 
 	function col:Spacer(h) self._y=self._y+(h or 8); return self end
 
-	-- ── Label ───────────────────────────────────────────────
 	function col:Label(text)
 		local posY=self._y
 		local wrap=Instance.new("Frame"); wrap.Size=UDim2.new(1,-12,0,22); wrap.Position=UDim2.new(0,6,0,posY)
@@ -582,7 +559,6 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 		self._y=posY+22; return self
 	end
 
-	-- ── KeyDisplay ──────────────────────────────────────────
 	function col:KeyDisplay(key)
 		local posY=self._y
 		local kD=Instance.new("TextButton"); kD.Size=UDim2.new(1,-12,0,22); kD.Position=UDim2.new(0,6,0,posY)
@@ -592,12 +568,6 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 		regItem(kD,posY); self._y=posY+28; return self
 	end
 
-	-- ================================================================
-	--  CHECKBOX
-	--  Accepts both:
-	--    col:Checkbox("label", default, callback [,doCP, defC, defOp, cpCb])
-	--    col:Checkbox("key","label", default, callback [,doCP, defC, defOp, cpCb])
-	-- ================================================================
 	function col:Checkbox(a1, a2, a3, a4, a5, a6, a7, a8)
 		local key,labelText,default,callback,doColorPicker,defColor,defOpacity,colorCb
 		if type(a1) == "string" and type(a2) == "string" then
@@ -701,12 +671,6 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 		self._y=posY+26; return obj, self
 	end
 
-	-- ================================================================
-	--  DROPDOWN
-	--  Accepts both:
-	--    col:Dropdown("label", options, default, callback [,doCP,...])
-	--    col:Dropdown("key","label", options, default, callback [,doCP,...])
-	-- ================================================================
 	function col:Dropdown(a1,a2,a3,a4,a5,a6,a7,a8,a9)
 		local key,labelText,options,default,callback,doColorPicker,defColor,defOpacity,colorCb
 		    = normaliseDropArgs(a1,a2,a3,a4,a5,a6,a7,a8,a9)
@@ -892,14 +856,7 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 		self._y=posY+26; return obj, self
 	end
 
-	-- ================================================================
-	--  SLIDER
-	--  Accepts both:
-	--    col:Slider("label", min, max, default, callback)
-	--    col:Slider("key","label", min, max, default, callback)
-	-- ================================================================
 	function col:Slider(a1,a2,a3,a4,a5,a6)
-		-- detect: if a1 string AND a2 string → key present
 		local key,labelText,minVal,maxVal,default,callback
 		if type(a1)=="string" and type(a2)=="string" then
 			key,labelText,minVal,maxVal,default,callback=a1,a2,a3,a4,a5,a6
@@ -960,26 +917,13 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 		self._y=posY+26; return obj, self
 	end
 
-	-- ================================================================
-	--  KEYBIND
-	--  Accepts both:
-	--    col:Keybind("label", defaultKey, callback)
-	--    col:Keybind("key","label", defaultKey, callback)
-	-- ================================================================
 	function col:Keybind(a1,a2,a3,a4)
-		-- detect: a1 string AND a2 string AND (a3 is string or nil) → key present
-		-- distinguish: Keybind("label","RShift",cb) vs Keybind("key","label","RShift",cb)
-		-- Rule: if a1 string AND a2 string AND (type(a3)=="string" or type(a3)=="nil") AND type(a4)=="function" or nil → new-style
-		-- Simpler: if a4 is function or (a3 is function) → old vs new
 		local key,labelText,defaultKey,callback
 		if type(a4)=="function" or (type(a3)=="function" and type(a2)=="string" and type(a1)=="string") then
-			-- new-style: key, label, defaultKey, callback
 			key,labelText,defaultKey,callback=a1,a2,a3,a4
 		elseif type(a3)=="function" or a3==nil then
-			-- old-style: label, defaultKey, callback
 			key,labelText,defaultKey,callback=nil,a1,a2,a3
 		else
-			-- fallback new-style
 			key,labelText,defaultKey,callback=a1,a2,a3,a4
 		end
 
@@ -1018,12 +962,6 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 		self._y=posY+26; return obj, self
 	end
 
-	-- ================================================================
-	--  PAIRED CHECKBOX
-	--  Accepts both:
-	--    col:PairedCheckbox("lL",dL, "lR",dR, cbL,cbR)
-	--    col:PairedCheckbox("keyL","keyR", "lL",dL, "lR",dR, cbL,cbR)
-	-- ================================================================
 	function col:PairedCheckbox(a1,a2,a3,a4,a5,a6,a7,a8)
 		local keyL,keyR,lL,dL,lR,dR,cbL,cbR=normalisePaired(a1,a2,a3,a4,a5,a6,a7,a8)
 		local posY=self._y; local row=makeRow(posY,22)
@@ -1062,9 +1000,6 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 		self._y=posY+24; return objL, objR, self
 	end
 
-	-- ================================================================
-	--  EXPANDABLE CHECKBOX
-	-- ================================================================
 	function col:ExpandableCheckbox(a1,a2,a3,a4,a5)
 		local key,labelText,default,callback,subBuilder
 		if type(a1)=="string" and type(a2)=="string" then
@@ -1163,15 +1098,187 @@ local function makeTabObj(panel, registry, openDD, winOptions)
 end
 
 -- ============================================================
+--  TILED MIRRORED BACKGROUND
+--  Rules per tile grid position (col c, row r), both 0-indexed:
+--    flipX = (c % 2 == 1)          → odd columns flip horizontally
+--    flipY = (r % 2 == 1)          → odd rows flip vertically
+--    Both applies diagonally (odd col + odd row)
+--
+--  We generate a 2×2 super-block of 4 tiles and replicate it
+--  across the window using ClipsDescendants on a container.
+--
+--  TILE_PX must match the actual asset pixel size (768).
+-- ============================================================
+local TILE_PX = 768
+
+local function buildBackground(win, assetId)
+	-- win must expose _outerFrame and _gui (set in OnyxiteLib.new below)
+	local outerFrame = win._outerFrame
+	local gui        = win._gui
+	assert(outerFrame, "buildBackground: win._outerFrame is nil")
+	assert(gui,        "buildBackground: win._gui is nil")
+
+	-- Background sits BEHIND outerFrame — we parent a frame to the ScreenGui
+	-- and position/size it to always match outerFrame.
+	local bgHolder = Instance.new("Frame")
+	bgHolder.Name = "BG_Holder"
+	bgHolder.BackgroundTransparency = 1
+	bgHolder.BorderSizePixel = 0
+	bgHolder.ZIndex = 0          -- behind everything
+	bgHolder.ClipsDescendants = true
+	bgHolder.Parent = gui
+
+	-- Dark tint overlay so the pattern doesn't overpower the UI
+	local tint = Instance.new("Frame")
+	tint.Size = UDim2.fromScale(1, 1)
+	tint.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	tint.BackgroundTransparency = 0.55
+	tint.BorderSizePixel = 0
+	tint.ZIndex = 1
+	tint.Parent = bgHolder
+
+	-- Container for the actual tiles, clipped to the holder
+	local tileContainer = Instance.new("Frame")
+	tileContainer.Name = "TileContainer"
+	tileContainer.Size = UDim2.fromScale(1, 1)
+	tileContainer.BackgroundTransparency = 1
+	tileContainer.BorderSizePixel = 0
+	tileContainer.ZIndex = 0
+	tileContainer.ClipsDescendants = false
+	tileContainer.Parent = bgHolder
+
+	-- We keep a flat list of all tile ImageLabels so we can destroy/rebuild
+	local tiles = {}
+
+	local function clearTiles()
+		for _, t in ipairs(tiles) do
+			if t and t.Parent then t:Destroy() end
+		end
+		tiles = {}
+	end
+
+	local function buildTiles(winW, winH)
+		clearTiles()
+
+		-- How many tile columns/rows we need to cover the window
+		-- We pad by 1 extra on each side so partial tiles at edges are visible
+		local numCols = math.ceil(winW / TILE_PX) + 1
+		local numRows = math.ceil(winH / TILE_PX) + 1
+
+		for r = 0, numRows - 1 do
+			for c = 0, numCols - 1 do
+				local flipX = (c % 2 == 1)
+				local flipY = (r % 2 == 1)
+
+				local img = Instance.new("ImageLabel")
+				img.Image = assetId
+				img.Size = UDim2.new(0, TILE_PX, 0, TILE_PX)
+				img.Position = UDim2.new(0, c * TILE_PX, 0, r * TILE_PX)
+				img.BackgroundTransparency = 1
+				img.BorderSizePixel = 0
+				img.ScaleType = Enum.ScaleType.Stretch
+				img.ZIndex = 0
+
+				-- Apply mirroring via UIScale + negative scale trick:
+				-- We use a sub-frame with clipping so the flip works correctly.
+				-- Flip is achieved by anchoring at the opposite edge and
+				-- using negative UDim offset.
+				if flipX or flipY then
+					-- Wrap in a Frame to handle the clip region properly
+					local wrapper = Instance.new("Frame")
+					wrapper.Size = UDim2.new(0, TILE_PX, 0, TILE_PX)
+					wrapper.Position = UDim2.new(0, c * TILE_PX, 0, r * TILE_PX)
+					wrapper.BackgroundTransparency = 1
+					wrapper.BorderSizePixel = 0
+					wrapper.ClipsDescendants = true
+					wrapper.ZIndex = 0
+					wrapper.Parent = tileContainer
+
+					-- Place the image inside the wrapper, applying flip
+					local innerImg = Instance.new("ImageLabel")
+					innerImg.Image = assetId
+					innerImg.BackgroundTransparency = 1
+					innerImg.BorderSizePixel = 0
+					innerImg.ScaleType = Enum.ScaleType.Stretch
+					innerImg.ZIndex = 0
+
+					if flipX and flipY then
+						-- Flip both: position at (TILE_PX, TILE_PX), size negative both
+						innerImg.Size = UDim2.new(0, -TILE_PX, 0, -TILE_PX)
+						innerImg.Position = UDim2.new(0, TILE_PX, 0, TILE_PX)
+					elseif flipX then
+						-- Flip horizontal only: anchor right side, go left
+						innerImg.Size = UDim2.new(0, -TILE_PX, 0, TILE_PX)
+						innerImg.Position = UDim2.new(0, TILE_PX, 0, 0)
+					else
+						-- Flip vertical only: anchor bottom, go up
+						innerImg.Size = UDim2.new(0, TILE_PX, 0, -TILE_PX)
+						innerImg.Position = UDim2.new(0, 0, 0, TILE_PX)
+					end
+
+					innerImg.Parent = wrapper
+					table.insert(tiles, wrapper)
+				else
+					-- No flip: plain tile
+					img.Parent = tileContainer
+					table.insert(tiles, img)
+				end
+			end
+		end
+	end
+
+	-- Sync bgHolder position/size with outerFrame every frame
+	-- We use a RunService connection so it always stays in sync even during tweens
+	local RunService = game:GetService("RunService")
+	local lastSize = Vector2.new(0, 0)
+
+	local syncConn = RunService.RenderStepped:Connect(function()
+		if not outerFrame or not outerFrame.Parent then return end
+		local absPos  = outerFrame.AbsolutePosition
+		local absSize = outerFrame.AbsoluteSize
+
+		bgHolder.Position = UDim2.new(0, absPos.X, 0, absPos.Y)
+		bgHolder.Size = UDim2.new(0, absSize.X, 0, absSize.Y)
+
+		-- Rebuild tiles only when the window size changes
+		if absSize ~= lastSize then
+			lastSize = absSize
+			buildTiles(absSize.X, absSize.Y)
+		end
+	end)
+
+	-- Clean up when the GUI is destroyed
+	gui.AncestryChanged:Connect(function()
+		if not gui.Parent then
+			syncConn:Disconnect()
+			clearTiles()
+		end
+	end)
+
+	-- Initial build using the configured width/height
+	local initSize = outerFrame.AbsoluteSize
+	if initSize.X > 0 and initSize.Y > 0 then
+		bgHolder.Position = UDim2.new(0, outerFrame.AbsolutePosition.X, 0, outerFrame.AbsolutePosition.Y)
+		bgHolder.Size = UDim2.new(0, initSize.X, 0, initSize.Y)
+		buildTiles(initSize.X, initSize.Y)
+		lastSize = initSize
+	end
+
+	return bgHolder
+end
+
+-- ============================================================
 --  PUBLIC API
 -- ============================================================
 local OnyxiteLib={}
+
+-- Expose buildBackground as a public method
+OnyxiteLib.buildBackground = buildBackground
 
 function OnyxiteLib.new(config)
 	local win={}; win._tabPanels={}; win._tabButtons={}; win._activeTab=nil; win.Options={}
 	local registry={}; local openDD={fn=nil}
 
-	-- 1.25× default size
 	local WIN_W      = config.Width  or 1100
 	local WIN_H      = config.Height or 662
 	local BORDER     = 5
@@ -1188,7 +1295,6 @@ function OnyxiteLib.new(config)
 	local gui=Instance.new("ScreenGui"); gui.Name="OnyxiteGUI"; gui.ResetOnSpawn=false
 	gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling; gui.Parent=guiParent
 
-	-- ── outer shell ─────────────────────────────────────────
 	local outerFrame=Instance.new("Frame"); outerFrame.Name="WindowFrame"
 	outerFrame.Size=UDim2.new(0,WIN_W+BORDER*2,0,WIN_H+BORDER*2)
 	outerFrame.Position=UDim2.new(0.5,-(WIN_W+BORDER*2)/2,0.5,-(WIN_H+BORDER*2)/2)
@@ -1197,6 +1303,10 @@ function OnyxiteLib.new(config)
 	gradientN(outerFrame,{{0,Color3.fromRGB(4,4,4)},{0.3,Color3.fromRGB(18,18,18)},{0.7,Color3.fromRGB(18,18,18)},{1,Color3.fromRGB(4,4,4)}},120)
 	stroke(outerFrame,C.shellBorder,1,0.3)
 
+	-- Expose internals for buildBackground
+	win._outerFrame = outerFrame
+	win._gui = gui
+
 	local main=Instance.new("Frame"); main.Name="Main"
 	main.Size=UDim2.new(1,-BORDER*2,1,-BORDER*2); main.Position=UDim2.new(0,BORDER,0,BORDER)
 	main.BackgroundColor3=C.bgMain; main.BorderSizePixel=0; main.ZIndex=2; main.ClipsDescendants=false; main.Parent=outerFrame
@@ -1204,11 +1314,13 @@ function OnyxiteLib.new(config)
 	gradientN(main,{{0,C.bgSurface},{0.5,C.bgMain},{1,C.bgDeep}},160)
 	stroke(main,C.borderHard,1,0.2)
 
+	-- Make main semi-transparent so background shows through
+	main.BackgroundTransparency = 0.18
+
 	local topAccent=Instance.new("Frame"); topAccent.Size=UDim2.new(0,64,0,1)
 	topAccent.BackgroundColor3=C.accentDim; topAccent.BorderSizePixel=0; topAccent.ZIndex=6; topAccent.Parent=main; corner(topAccent,1)
 	do local g=Instance.new("UIGradient"); g.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.2),NumberSequenceKeypoint.new(1,1)}); g.Rotation=0; g.Parent=topAccent end
 
-	-- ── titlebar ────────────────────────────────────────────
 	local titleBar=Instance.new("Frame"); titleBar.Name="TitleBar"
 	titleBar.Size=UDim2.new(1,0,0,TITLEBAR_H); titleBar.BackgroundColor3=C.titleBg; titleBar.BorderSizePixel=0; titleBar.ZIndex=4; titleBar.Parent=main
 	corner(titleBar,2)
@@ -1241,7 +1353,6 @@ function OnyxiteLib.new(config)
 	local closeBtn   =makeWinBtn(-30,"×",Color3.fromRGB(38,12,12),Color3.fromRGB(200,80,80))
 	local minimizeBtn=makeWinBtn(-56,"−",Color3.fromRGB(28,28,20),Color3.fromRGB(200,200,120))
 
-	-- ── restore pill ─────────────────────────────────────────
 	local rPill=Instance.new("TextButton"); rPill.Size=UDim2.new(0,130,0,26); rPill.Position=UDim2.new(0.5,-65,0,-50)
 	rPill.BackgroundColor3=Color3.fromRGB(12,12,12); rPill.BorderSizePixel=0; rPill.Text=""
 	rPill.AutoButtonColor=false; rPill.ZIndex=50; rPill.Visible=false; rPill.Parent=gui
@@ -1258,7 +1369,6 @@ function OnyxiteLib.new(config)
 	UIS.InputChanged:Connect(function(inp) if pDrag and inp.UserInputType==Enum.UserInputType.MouseMovement then local d=inp.Position-pDS;rPill.Position=UDim2.new(pSP.X.Scale,pSP.X.Offset+d.X,pSP.Y.Scale,pSP.Y.Offset+d.Y) end end)
 	UIS.InputEnded:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 then pDrag=false end end)
 
-	-- ── close dialog ─────────────────────────────────────────
 	local bOver=Instance.new("Frame"); bOver.Size=UDim2.fromScale(1,1); bOver.BackgroundColor3=Color3.fromRGB(0,0,0)
 	bOver.BackgroundTransparency=1; bOver.BorderSizePixel=0; bOver.ZIndex=90; bOver.Visible=false; bOver.Parent=gui
 	local cDlg=Instance.new("Frame"); cDlg.Size=UDim2.new(0,300,0,158); cDlg.Position=UDim2.new(0.5,-150,0.5,-79)
@@ -1301,14 +1411,11 @@ function OnyxiteLib.new(config)
 	confirmBtn.MouseButton1Click:Connect(function() tw(bOver,{BackgroundTransparency=0},TweenInfo.new(0.18)):Play(); task.wait(0.22); gui:Destroy() end)
 	closeBtn.MouseButton1Click:Connect(openDialog)
 
-	-- ── minimize / restore  (NO GroupTransparency — outerFrame is a Frame) ──
 	local function minimize()
 		menuVisible=false
-		-- fade + hide via BackgroundTransparency on main children is complex;
-		-- instead just hide directly after a brief tween on the close button area
 		tw(main,{BackgroundTransparency=1},FAST):Play()
 		task.delay(0.18,function()
-			outerFrame.Visible=false; main.BackgroundTransparency=0
+			outerFrame.Visible=false; main.BackgroundTransparency=0.18
 			rPill.Position=UDim2.new(0.5,-65,0,-50); rPill.Visible=true
 			tw(rPill,{Position=UDim2.new(0.5,-65,0,12)},SLOW):Play()
 		end)
@@ -1325,13 +1432,11 @@ function OnyxiteLib.new(config)
 		if inp.KeyCode==Enum.KeyCode.Insert then if menuVisible then minimize() else restore() end end
 	end)
 
-	-- ── drag titlebar ─────────────────────────────────────────
 	local drag,dS,dSP=false,nil,nil
 	titleBar.InputBegan:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 then drag=true;dS=inp.Position;dSP=outerFrame.Position end end)
 	UIS.InputChanged:Connect(function(inp) if drag and inp.UserInputType==Enum.UserInputType.MouseMovement then local d=inp.Position-dS;outerFrame.Position=UDim2.new(dSP.X.Scale,dSP.X.Offset+d.X,dSP.Y.Scale,dSP.Y.Offset+d.Y) end end)
 	UIS.InputEnded:Connect(function(inp) if inp.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end end)
 
-	-- ── resize handle ─────────────────────────────────────────
 	local rHandle=Instance.new("TextButton"); rHandle.Size=UDim2.new(0,20,0,20); rHandle.Position=UDim2.new(1,-18,1,-18)
 	rHandle.BackgroundColor3=Color3.fromRGB(30,30,30); rHandle.BackgroundTransparency=0.6; rHandle.BorderSizePixel=0
 	rHandle.Text=""; rHandle.AutoButtonColor=false; rHandle.ZIndex=20; rHandle.Parent=main; corner(rHandle,2)
@@ -1344,7 +1449,6 @@ function OnyxiteLib.new(config)
 	rHandle.MouseEnter:Connect(function() tw(rHandle,{BackgroundTransparency=0.3},SNAP):Play(); tw(rGlyph,{TextColor3=C.textSub},SNAP):Play() end)
 	rHandle.MouseLeave:Connect(function() tw(rHandle,{BackgroundTransparency=0.6},SNAP):Play(); tw(rGlyph,{TextColor3=C.textDim},SNAP):Play() end)
 
-	-- ── sidebar ───────────────────────────────────────────────
 	local sidebar=Instance.new("Frame"); sidebar.Name="Sidebar"
 	sidebar.Size=UDim2.new(0,SIDEBAR_OW,1,-TITLEBAR_H); sidebar.Position=UDim2.new(0,0,0,TITLEBAR_H)
 	sidebar.BackgroundColor3=C.sidebarBg; sidebar.BorderSizePixel=0; sidebar.ZIndex=4; sidebar.ClipsDescendants=true; sidebar.Parent=main; corner(sidebar,2)
@@ -1369,7 +1473,6 @@ function OnyxiteLib.new(config)
 	sTBtn.MouseEnter:Connect(function() tw(sTBtn,{BackgroundColor3=Color3.fromRGB(18,18,18),TextColor3=C.textSub},SNAP):Play() end)
 	sTBtn.MouseLeave:Connect(function() tw(sTBtn,{BackgroundColor3=Color3.fromRGB(10,10,10),TextColor3=C.textDim},SNAP):Play() end)
 
-	-- ── PROFILE CARD ──────────────────────────────────────────
 	local profileCard=Instance.new("Frame"); profileCard.Name="ProfileCard"
 	profileCard.Size=UDim2.new(1,0,0,PROFILE_H); profileCard.Position=UDim2.new(0,0,1,-PROFILE_H)
 	profileCard.BackgroundColor3=C.profileBg; profileCard.BorderSizePixel=0; profileCard.ZIndex=6; profileCard.Parent=sidebar; corner(profileCard,2)
@@ -1394,22 +1497,18 @@ function OnyxiteLib.new(config)
 	profUser.Text="@"..player.Name
 	player:GetPropertyChangedSignal("DisplayName"):Connect(function() profName.Text=player.DisplayName end)
 
-	-- ── content area ──────────────────────────────────────────
 	local cArea=Instance.new("Frame"); cArea.Name="ContentArea"
 	cArea.Size=UDim2.new(1,-(SIDEBAR_OW+1),1,-TITLEBAR_H); cArea.Position=UDim2.new(0,SIDEBAR_OW+1,0,TITLEBAR_H)
 	cArea.BackgroundTransparency=1; cArea.BorderSizePixel=0; cArea.ZIndex=2; cArea.Parent=main
 
-	-- sliding selector bar
 	local tabSelector=Instance.new("Frame"); tabSelector.Size=UDim2.new(0,2,0,16)
 	tabSelector.BackgroundColor3=C.accentMid; tabSelector.BorderSizePixel=0; tabSelector.ZIndex=8; tabSelector.Parent=sidebar; corner(tabSelector,1)
 
-	-- ── showTab ───────────────────────────────────────────────
 	local TAB_H=38
 	local function showTab(name)
 		if openDD.fn then openDD.fn();openDD.fn=nil end
 		for tabName,p in pairs(win._tabPanels) do
 			if p.Visible and tabName~=name then
-				-- safe guard: only tween GroupTransparency on CanvasGroup
 				if p:IsA("CanvasGroup") then tw(p,{GroupTransparency=1},FAST):Play() end
 				task.delay(0.18,function() p.Visible=false; if p:IsA("CanvasGroup") then p.GroupTransparency=0 end end)
 			end
@@ -1449,7 +1548,6 @@ function OnyxiteLib.new(config)
 	end
 	sTBtn.MouseButton1Click:Connect(function() setSidebar(not sidebarOpen) end)
 
-	-- ── build tabs ────────────────────────────────────────────
 	local tabDefs=config.Tabs or {}
 	if #tabDefs>0 then win._activeTab=tabDefs[1].Name end
 
