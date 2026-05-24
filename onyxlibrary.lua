@@ -1,8 +1,6 @@
 -- onyxlibrary.lua  —  Black & White edition  (fixed + 1.25x scale + image bg)
 -- Changes:
 --   • Checkbox now supports color picker (same swatch button as Dropdown).
---   • Background is now a tiled mirrored image (assetId hardcoded or passed via config.BackgroundImage).
---   • buildBackground called automatically inside OnyxiteLib.new.
 --   • main panel made semi-transparent so bg shows through.
 
 local Players      = game:GetService("Players")
@@ -16,8 +14,8 @@ local RunService   = game:GetService("RunService")
 local C = {
 	shellOuter   = Color3.fromRGB(8,   8,   8),
 	shellBorder  = Color3.fromRGB(55,  55,  55),
-	bgMain       = Color3.fromRGB(10,  10,  255),
-	bgDeep       = Color3.fromRGB(5,   5,   5),
+	bgMain       = Color3.fromRGB(100, 100, 100),
+	bgDeep       = Color3.fromRGB(0,   0,   0),
 	bgSurface    = Color3.fromRGB(16,  16,  16),
 	bgRaised     = Color3.fromRGB(22,  22,  22),
 	bgHover      = Color3.fromRGB(30,  30,  30),
@@ -165,14 +163,14 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	defColor   = defColor   or Color3.fromRGB(200, 200, 200)
 	defOpacity = defOpacity or 1.0
 
-	local curH, curS, curV = Color3.toHSV(defColor)
+	local curH, curS, curV = defColor:ToHSV()
 	local curOp = math.clamp(defOpacity, 0, 1)
 
 	local panel = Instance.new("Frame")
 	panel.Size = UDim2.new(1, 0, 0, PICKER_H)
 	panel.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 	panel.BorderSizePixel = 0; panel.ZIndex = 8
-	panel.ClipsDescendants = false; panel.Visible = false
+	panel.ClipsDescendants = true; panel.Visible = false
 	panel.Parent = parent
 	corner(panel, 3); stroke(panel, C.borderHard, 1, 0.1)
 
@@ -182,7 +180,7 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	svBox.BackgroundColor3 = Color3.fromHSV(curH, 1, 1)
 	svBox.BorderSizePixel = 0; svBox.ZIndex = 9
 	svBox.ClipsDescendants = true; svBox.Parent = panel; corner(svBox, 4)
-	
+
 	local satOverlay = Instance.new("Frame")
 	satOverlay.Size = UDim2.fromScale(1, 1)
 	satOverlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -212,7 +210,7 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 		NumberSequenceKeypoint.new(1, 0)
 	})
 	valGrad.Rotation = 90; valGrad.Parent = valOverlay
-	
+
 	local svCursor = Instance.new("Frame")
 	svCursor.Size = UDim2.new(0, 12, 0, 12)
 	svCursor.Position = UDim2.new(curS, -6, 1-curV, -6)
@@ -224,12 +222,12 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	hueBar.Size = UDim2.new(0, 20, 0, 160)
 	hueBar.Position = UDim2.new(0, 205, 0, 15)
 	hueBar.BorderSizePixel = 0; hueBar.ZIndex = 9; hueBar.Parent = panel; corner(hueBar, 4)
-	
+
 	local hueBkgd = Instance.new("Frame")
 	hueBkgd.Size = UDim2.new(1, 0, 1, 0)
 	hueBkgd.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	hueBkgd.BorderSizePixel = 0; hueBkgd.ZIndex = 10; hueBkgd.Parent = hueBar
-	
+
 	local hueGrad = Instance.new("UIGradient")
 	hueGrad.Color = ColorSequence.new({
 		ColorSequenceKeypoint.new(0,   Color3.fromHSV(0,   1, 1)),
@@ -241,7 +239,7 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 		ColorSequenceKeypoint.new(1,   Color3.fromHSV(1,   1, 1))
 	})
 	hueGrad.Rotation = 90; hueGrad.Parent = hueBkgd
-	
+
 	local hueCursor = Instance.new("Frame")
 	hueCursor.Size = UDim2.new(1, 0, 0, 6)
 	hueCursor.Position = UDim2.new(0, 0, curH, -3)
@@ -252,7 +250,7 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	opTrack.Size = UDim2.new(0, 20, 0, 160)
 	opTrack.Position = UDim2.new(0, 230, 0, 15)
 	opTrack.BorderSizePixel = 0; opTrack.ZIndex = 9; opTrack.Parent = panel; corner(opTrack, 4)
-	
+
 	local opBkgd = Instance.new("ImageLabel")
 	opBkgd.Image = "http://www.roblox.com/asset/?id=14204231522"
 	opBkgd.ImageTransparency = 0.45
@@ -260,7 +258,7 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	opBkgd.TileSize = UDim2.fromOffset(10, 10)
 	opBkgd.Size = UDim2.new(1, 0, 1, 0)
 	opBkgd.BorderSizePixel = 0; opBkgd.ZIndex = 10; opBkgd.Parent = opTrack
-	
+
 	local opGrad = Instance.new("UIGradient")
 	opGrad.Color = ColorSequence.new(defColor, defColor)
 	opGrad.Transparency = NumberSequence.new({
@@ -268,7 +266,7 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 		NumberSequenceKeypoint.new(1, 0)
 	})
 	opGrad.Rotation = 90; opGrad.Parent = opBkgd
-	
+
 	local opCursor = Instance.new("Frame")
 	opCursor.Size = UDim2.new(1, 0, 0, 6)
 	opCursor.Position = UDim2.new(0, 0, 1-curOp, -3)
@@ -323,7 +321,7 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 
 	local function getColor()   return Color3.fromHSV(curH, curS, curV) end
 	local function getOpacity() return curOp end
-	
+
 	local function updateInputs()
 		local c = getColor()
 		local r = math.floor(c.r * 255)
@@ -349,7 +347,7 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	end
 
 	local svDrag, hueDrag, opDrag = false, false, false
-	
+
 	svBox.InputBegan:Connect(function(inp)
 		if inp.UserInputType == Enum.UserInputType.MouseButton1 then
 			svDrag = true
@@ -412,7 +410,7 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 		if #normalized ~= 7 then updateInputs(); return end
 		local success, result = pcall(Color3.fromHex, normalized:sub(2))
 		if success and typeof(result) == "Color3" then
-			curH, curS, curV = Color3.toHSV(result); refreshAll()
+			curH, curS, curV = result:ToHSV(); refreshAll()
 		else
 			updateInputs()
 		end
@@ -423,7 +421,7 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 		local g = tonumber(greenInput.Text) or 0
 		local b = tonumber(blueInput.Text) or 0
 		if r >= 0 and r <= 255 and g >= 0 and g <= 255 and b >= 0 and b <= 255 then
-			curH, curS, curV = Color3.toHSV(Color3.fromRGB(r, g, b)); refreshAll()
+			curH, curS, curV = Color3.fromRGB(r, g, b):ToHSV(); refreshAll()
 		end
 	end
 	redInput.FocusLost:Connect(function(enter) if enter then applyRGB() end end)
@@ -431,136 +429,13 @@ local function buildColorPicker(parent, defColor, defOpacity, colorCb)
 	blueInput.FocusLost:Connect(function(enter) if enter then applyRGB() end end)
 
 	local function setColorRaw(color, opacity)
-		curH, curS, curV = Color3.toHSV(color)
+		curH, curS, curV = color:ToHSV()
 		curOp = math.clamp(opacity or curOp, 0, 1)
 		refreshAll()
 	end
 
 	refreshAll()
 	return panel, getColor, getOpacity, setColorRaw
-end
-
--- ============================================================
---  TILED MIRRORED BACKGROUND
--- ============================================================
-local TILE_PX = 768
-
-local function buildBackground(win, assetId)
-	local outerFrame = win._outerFrame
-	local gui        = win._gui
-	assert(outerFrame, "buildBackground: win._outerFrame is nil")
-	assert(gui,        "buildBackground: win._gui is nil")
-
-	local bgHolder = Instance.new("Frame")
-	bgHolder.Name = "BG_Holder"
-	bgHolder.BackgroundTransparency = 1
-	bgHolder.BorderSizePixel = 0
-	bgHolder.ZIndex = 0
-	bgHolder.ClipsDescendants = true
-	bgHolder.Parent = gui
-
-	-- Dark tint so UI stays readable
-	local tint = Instance.new("Frame")
-	tint.Size = UDim2.fromScale(1, 1)
-	tint.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	tint.BackgroundTransparency = 0.45
-	tint.BorderSizePixel = 0
-	tint.ZIndex = 1
-	tint.Parent = bgHolder
-
-	local tileContainer = Instance.new("Frame")
-	tileContainer.Name = "TileContainer"
-	tileContainer.Size = UDim2.fromScale(1, 1)
-	tileContainer.BackgroundTransparency = 1
-	tileContainer.BorderSizePixel = 0
-	tileContainer.ZIndex = 0
-	tileContainer.ClipsDescendants = false
-	tileContainer.Parent = bgHolder
-
-	local tiles = {}
-
-	local function clearTiles()
-		for _, t in ipairs(tiles) do if t and t.Parent then t:Destroy() end end
-		tiles = {}
-	end
-
-	local function buildTiles(winW, winH)
-		clearTiles()
-		local numCols = math.ceil(winW / TILE_PX) + 1
-		local numRows = math.ceil(winH / TILE_PX) + 1
-		for r = 0, numRows - 1 do
-			for c = 0, numCols - 1 do
-				local flipX = (c % 2 == 1)
-				local flipY = (r % 2 == 1)
-				if flipX or flipY then
-					local wrapper = Instance.new("Frame")
-					wrapper.Size = UDim2.new(0, TILE_PX, 0, TILE_PX)
-					wrapper.Position = UDim2.new(0, c * TILE_PX, 0, r * TILE_PX)
-					wrapper.BackgroundTransparency = 1
-					wrapper.BorderSizePixel = 0
-					wrapper.ClipsDescendants = true
-					wrapper.ZIndex = 0
-					wrapper.Parent = tileContainer
-					local innerImg = Instance.new("ImageLabel")
-					innerImg.Image = assetId
-					innerImg.BackgroundTransparency = 1
-					innerImg.BorderSizePixel = 0
-					innerImg.ScaleType = Enum.ScaleType.Stretch
-					innerImg.ZIndex = 0
-					if flipX and flipY then
-						innerImg.Size = UDim2.new(0, -TILE_PX, 0, -TILE_PX)
-						innerImg.Position = UDim2.new(0, TILE_PX, 0, TILE_PX)
-					elseif flipX then
-						innerImg.Size = UDim2.new(0, -TILE_PX, 0, TILE_PX)
-						innerImg.Position = UDim2.new(0, TILE_PX, 0, 0)
-					else
-						innerImg.Size = UDim2.new(0, TILE_PX, 0, -TILE_PX)
-						innerImg.Position = UDim2.new(0, 0, 0, TILE_PX)
-					end
-					innerImg.Parent = wrapper
-					table.insert(tiles, wrapper)
-				else
-					local img = Instance.new("ImageLabel")
-					img.Image = assetId
-					img.Size = UDim2.new(0, TILE_PX, 0, TILE_PX)
-					img.Position = UDim2.new(0, c * TILE_PX, 0, r * TILE_PX)
-					img.BackgroundTransparency = 1
-					img.BorderSizePixel = 0
-					img.ScaleType = Enum.ScaleType.Stretch
-					img.ZIndex = 0
-					img.Parent = tileContainer
-					table.insert(tiles, img)
-				end
-			end
-		end
-	end
-
-	local lastSize = Vector2.new(0, 0)
-	local syncConn = RunService.RenderStepped:Connect(function()
-		if not outerFrame or not outerFrame.Parent then return end
-		local absPos  = outerFrame.AbsolutePosition
-		local absSize = outerFrame.AbsoluteSize
-		bgHolder.Position = UDim2.new(0, absPos.X, 0, absPos.Y)
-		bgHolder.Size = UDim2.new(0, absSize.X, 0, absSize.Y)
-		if absSize ~= lastSize then
-			lastSize = absSize
-			buildTiles(absSize.X, absSize.Y)
-		end
-	end)
-
-	gui.AncestryChanged:Connect(function()
-		if not gui.Parent then syncConn:Disconnect(); clearTiles() end
-	end)
-
-	local initSize = outerFrame.AbsoluteSize
-	if initSize.X > 0 and initSize.Y > 0 then
-		bgHolder.Position = UDim2.new(0, outerFrame.AbsolutePosition.X, 0, outerFrame.AbsolutePosition.Y)
-		bgHolder.Size = UDim2.new(0, initSize.X, 0, initSize.Y)
-		buildTiles(initSize.X, initSize.Y)
-		lastSize = initSize
-	end
-
-	return bgHolder
 end
 
 -- ============================================================
@@ -715,7 +590,8 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 			-- Swatch button — right side of row, same position as dropdown
 			swatchBtn = Instance.new("TextButton")
 			swatchBtn.Size = UDim2.new(0,13,0,13)
-			swatchBtn.Position = UDim2.new(1,-18,0.5,-6)  -- right-aligned, vertically centred
+			swatchBtn.AnchorPoint = Vector2.new(1,0.5)
+			swatchBtn.Position = UDim2.new(1,-12,0.5,0)  -- fixed right-aligned position
 			swatchBtn.BackgroundColor3 = defColor
 			swatchBtn.BackgroundTransparency = 1 - math.clamp(defOpacity, 0, 1)
 			swatchBtn.BorderSizePixel = 0; swatchBtn.Text = ""
@@ -757,8 +633,12 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 				tw(pickerPanel, {Size=UDim2.new(1,0,0,0)}, MED):Play()
 				tw(swatchStroke, {Color=C.borderHard}, FAST):Play()
 				tw(container, {Size=UDim2.new(1,-12,0,containerH())}, MED):Play()
-				task.delay(0.26, function() pickerPanel.Visible = false end)
-				task.delay(0.26, function() shiftBelow(posY, -(PICKER_H+2), true) end)
+				task.delay(0.26, function()
+					if not cpOpen then
+						pickerPanel.Visible = false
+						shiftBelow(posY, -(PICKER_H+2), true)
+					end
+				end)
 			end
 			local function openCP()
 				cpOpen = true
@@ -808,7 +688,7 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 	-- ──────────────────────────────────────────────────────────
 	function col:Dropdown(a1,a2,a3,a4,a5,a6,a7,a8,a9)
 		local key, labelText, options, default, callback, doColorPicker, defColor, defOpacity, colorCb
-		    = normaliseDropArgs(a1,a2,a3,a4,a5,a6,a7,a8,a9)
+			= normaliseDropArgs(a1,a2,a3,a4,a5,a6,a7,a8,a9)
 
 		local posY = self._y; local COUNT = #options; local LIST_H = COUNT * ITEM_H
 		local ddOpen = false; local cpOpen = false
@@ -839,7 +719,9 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 		if doColorPicker then
 			defColor = defColor or Color3.fromRGB(200,200,200); defOpacity = defOpacity or 1.0
 			swatchBtn = Instance.new("TextButton")
-			swatchBtn.Size = UDim2.new(0,13,0,13); swatchBtn.Position = UDim2.new(0.44,-SWATCH_W,0,4)
+			swatchBtn.Size = UDim2.new(0,13,0,13)
+			swatchBtn.AnchorPoint = Vector2.new(1,0.5)
+			swatchBtn.Position = UDim2.new(1,-12,0.5,0)
 			swatchBtn.BackgroundColor3 = defColor
 			swatchBtn.BackgroundTransparency = 1 - math.clamp(defOpacity,0,1)
 			swatchBtn.BorderSizePixel = 0; swatchBtn.Text = ""; swatchBtn.AutoButtonColor = false
@@ -1020,8 +902,12 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 				tw(pickerPanel, {Size=UDim2.new(1,0,0,0)}, MED):Play()
 				tw(swatchStroke, {Color=C.borderHard}, FAST):Play()
 				tw(container, {Size=UDim2.new(1,-12,0,containerH())}, MED):Play()
-				task.delay(0.26, function() pickerPanel.Visible = false end)
-				task.delay(0.26, function() shiftBelow(posY, -(PICKER_H+2), true) end)
+				task.delay(0.26, function()
+					if not cpOpen then
+						pickerPanel.Visible = false
+						shiftBelow(posY, -(PICKER_H+2), true)
+					end
+				end)
 			end
 			local function openCP()
 				cpOpen = true; updatePickerPos()
@@ -1338,7 +1224,7 @@ local function makeTabObj(panel, registry, openDD, winOptions)
 		div.Size = UDim2.new(0,1,1,0); div.Position = UDim2.new(0.5,0,0,0)
 		div.BackgroundColor3 = C.borderFaint; div.BorderSizePixel = 0; div.ZIndex = 2; div.Parent = panel
 		return makeColumnObj(lSF, registry, openDD, winOptions),
-		       makeColumnObj(rSF, registry, openDD, winOptions)
+		makeColumnObj(rSF, registry, openDD, winOptions)
 	end
 	function tabObj:SingleColumn()
 		local sf = makeScrollCol(UDim2.fromScale(1,1))
@@ -1351,7 +1237,6 @@ end
 --  PUBLIC API
 -- ============================================================
 local OnyxiteLib = {}
-OnyxiteLib.buildBackground = buildBackground
 
 function OnyxiteLib.new(config)
 	local win = {}; win._tabPanels = {}; win._tabButtons = {}; win._activeTab = nil; win.Options = {}
@@ -1381,13 +1266,9 @@ function OnyxiteLib.new(config)
 	gradientN(outerFrame, {{0,Color3.fromRGB(4,4,4)},{0.3,Color3.fromRGB(18,18,18)},{0.7,Color3.fromRGB(18,18,18)},{1,Color3.fromRGB(4,4,4)}}, 120)
 	stroke(outerFrame, C.shellBorder, 1, 0.3)
 
-	-- Expose for buildBackground
+	-- Expose internal frames
 	win._outerFrame = outerFrame
 	win._gui = gui
-
-	-- ── Build tiled image background automatically ──────────
-	local bgAsset = config.BackgroundImage or "rbxassetid://75303397735790"
-	buildBackground(win, bgAsset)
 
 	local main = Instance.new("Frame"); main.Name = "Main"
 	main.Size = UDim2.new(1,-BORDER*2,1,-BORDER*2); main.Position = UDim2.new(0,BORDER,0,BORDER)
