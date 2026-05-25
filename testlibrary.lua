@@ -1719,9 +1719,7 @@ function OnyxiteLib.new(config)
 	main.ClipsDescendants = false
 	main.Parent = outerFrame
 	corner(main, 2)
-	gradientN(main, {{0,C.bgSurface},{0.5,C.bgMain},{1,C.bgDeep}}, 160)
-	stroke(main, C.borderHard, 1, 0.2)
-	main.BackgroundTransparency = 0.25
+	main.BackgroundTransparency = 0
 
 	local topAccent = Instance.new("Frame")
 	topAccent.Size = UDim2.new(0,64,0,1)
@@ -1737,10 +1735,10 @@ function OnyxiteLib.new(config)
 	titleBar.Size = UDim2.new(1,0,0,TITLEBAR_H)
 	titleBar.BackgroundColor3 = C.titleBg
 	titleBar.BorderSizePixel = 0
+	titleBar.BorderColor3 = C.borderHard
 	titleBar.ZIndex = 4
 	titleBar.Parent = main
 	corner(titleBar, 2)
-	gradientN(titleBar, {{0,Color3.fromRGB(18,18,18)},{0.6,Color3.fromRGB(10,10,10)},{1,Color3.fromRGB(5,5,5)}}, 180)
 	local tSep = Instance.new("Frame")
 	tSep.Size = UDim2.new(1,0,0,1)
 	tSep.Position = UDim2.new(0,0,1,-1)
@@ -1748,7 +1746,6 @@ function OnyxiteLib.new(config)
 	tSep.BorderSizePixel = 0
 	tSep.ZIndex = 5
 	tSep.Parent = titleBar
-	do local g = Instance.new("UIGradient"); g.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0.6),NumberSequenceKeypoint.new(0.5,0),NumberSequenceKeypoint.new(1,0.6)}); g.Rotation = 0; g.Parent = tSep end
 
 	local sDot = Instance.new("Frame")
 	sDot.Size = UDim2.new(0,5,0,5)
@@ -1964,16 +1961,14 @@ function OnyxiteLib.new(config)
 	-- Sidebar
 	local sidebar = Instance.new("Frame"); sidebar.Name = "Sidebar"
 	sidebar.Size = UDim2.new(0,SIDEBAR_OW,1,-TITLEBAR_H); sidebar.Position = UDim2.new(0,0,0,TITLEBAR_H)
-	sidebar.BackgroundColor3 = C.sidebarBg; sidebar.BorderSizePixel = 0; sidebar.ZIndex = 4; sidebar.ClipsDescendants = true; sidebar.Parent = main; corner(sidebar, 2)
-	gradientN(sidebar, {{0,Color3.fromRGB(14,14,14)},{0.5,Color3.fromRGB(8,8,8)},{1,Color3.fromRGB(4,4,4)}}, 180)
+	sidebar.BackgroundColor3 = C.sidebarBg; sidebar.BorderSizePixel = 0; sidebar.BorderColor3 = C.borderHard; sidebar.ZIndex = 4; sidebar.ClipsDescendants = true; sidebar.Parent = main; corner(sidebar, 2)
 	local sB = Instance.new("Frame")
 	sB.Size = UDim2.new(0,1,1,0); sB.Position = UDim2.new(1,-1,0,0)
 	sB.BackgroundColor3 = C.borderSoft; sB.BorderSizePixel = 0; sB.ZIndex = 5; sB.Parent = sidebar
 	do local g = Instance.new("UIGradient"); g.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0.7),NumberSequenceKeypoint.new(0.5,0.1),NumberSequenceKeypoint.new(1,0.7)}); g.Rotation = 90; g.Parent = sB end
 
 	local sLA = Instance.new("Frame")
-	sLA.Size = UDim2.new(1,0,0,44); sLA.BackgroundColor3 = Color3.fromRGB(10,10,10); sLA.BorderSizePixel = 0; sLA.ZIndex = 5; sLA.Parent = sidebar; corner(sLA, 2)
-	gradientN(sLA, {{0,Color3.fromRGB(20,20,20)},{1,Color3.fromRGB(6,6,6)}}, 180)
+	sLA.Size = UDim2.new(1,0,0,44); sLA.BackgroundColor3 = C.bgRaised; sLA.BorderSizePixel = 0; sLA.BorderColor3 = C.borderHard; sLA.ZIndex = 5; sLA.Parent = sidebar; corner(sLA, 2)
 	local sLD = Instance.new("Frame")
 	sLD.Size = UDim2.new(0,5,0,5); sLD.Position = UDim2.new(0,12,0.5,-2)
 	sLD.BackgroundColor3 = C.accentDim; sLD.BorderSizePixel = 0; sLD.ZIndex = 6; sLD.Parent = sLA; corner(sLD, 3)
@@ -2038,26 +2033,19 @@ function OnyxiteLib.new(config)
 	local function showTab(name)
 		for tabName, p in pairs(win._tabPanels) do
 			if p.Visible and tabName ~= name then
-				if p:IsA("CanvasGroup") then tw(p, {GroupTransparency=1}, FAST):Play() end
-				task.delay(0.18, function() p.Visible = false; if p:IsA("CanvasGroup") then p.GroupTransparency = 0 end end)
+				p.Visible = false
 			end
 		end
 		local newPanel = win._tabPanels[name]
 		if newPanel then
 			newPanel.Visible = true
-			if newPanel:IsA("CanvasGroup") then newPanel.GroupTransparency = 1; tw(newPanel, {GroupTransparency=0}, MED):Play() end
 		end
 		for _, d in ipairs(win._tabButtons) do
 			local active = d.name == name
 			if active then
-				tw(d.btn, {BackgroundColor3=C.tabActive}, MED):Play()
-				tw(d.iL,  {TextColor3=C.textBright},     MED):Play()
-				tw(d.lbl, {TextColor3=C.textBright},     MED):Play()
-				tw(tabSelector, {Position=UDim2.new(0,0,0,d.btn.Position.Y.Offset+(TAB_H-16)/2), Size=UDim2.new(0,2,0,16)}, SPRING):Play()
+				tw(d.btn, {BackgroundColor3=C.bgMain, BorderColor3=C.accentMid}, MED):Play()
 			else
-				tw(d.btn, {BackgroundColor3=C.tabInact}, FAST):Play()
-				tw(d.iL,  {TextColor3=C.textDim},        FAST):Play()
-				tw(d.lbl, {TextColor3=C.textDim},        FAST):Play()
+				tw(d.btn, {BackgroundColor3=C.bgRaised, BorderColor3=C.borderHard}, FAST):Play()
 			end
 		end
 		win._activeTab = name
@@ -2092,46 +2080,40 @@ function OnyxiteLib.new(config)
 		panel.Parent = cArea
 		win._tabPanels[def.Name] = panel
 
-		local btn = Instance.new("TextButton"); btn.Name = def.Name .. "Tab"
+		local btn = Instance.new("Frame"); btn.Name = def.Name .. "Tab"
 		btn.Size = UDim2.new(1,0,0,TAB_H); btn.Position = UDim2.new(0,0,0,yPos)
-		btn.BackgroundColor3 = (def.Name == win._activeTab) and C.tabActive or C.tabInact
-		btn.BorderSizePixel = 0; btn.Text = ""; btn.AutoButtonColor = false; btn.ZIndex = 6; btn.Parent = sidebar
+		btn.BackgroundColor3 = C.bgRaised
+		btn.BorderColor3 = C.borderHard; btn.BorderSizePixel = 1; btn.ZIndex = 6; btn.Parent = sidebar; corner(btn, 2)
 
 		local iL = Instance.new("TextLabel")
-		iL.Text = def.Icon or "·"; iL.Font = FONT_REG; iL.TextSize = 15
-		iL.TextColor3 = (def.Name == win._activeTab) and C.textBright or C.textDim
-		iL.BackgroundTransparency = 1; iL.Size = UDim2.new(0,SIDEBAR_CW,1,0)
-		iL.TextXAlignment = Enum.TextXAlignment.Center; iL.ZIndex = 7; iL.Parent = btn
+		iL.Text = def.Icon or "·"; iL.Font = FONT_REG; iL.TextSize = 14
+		iL.TextColor3 = C.textBright
+		iL.BackgroundTransparency = 1; iL.Size = UDim2.new(0,8,1,0); iL.Position = UDim2.new(0,8,0,0)
+		iL.TextXAlignment = Enum.TextXAlignment.Left; iL.ZIndex = 7; iL.Parent = btn; addToRegistry(iL, {TextColor3 = "textBright"})
 
 		local lbl = Instance.new("TextLabel")
-		lbl.Text = def.Name; lbl.Font = FONT_BOLD; lbl.TextSize = 12
-		lbl.TextColor3 = (def.Name == win._activeTab) and C.textBright or C.textDim
+		lbl.Text = def.Name; lbl.Font = FONT_REG; lbl.TextSize = 12
+		lbl.TextColor3 = C.textBright
 		lbl.TextTransparency = sidebarOpen and 0 or 1; lbl.BackgroundTransparency = 1
-		lbl.Size = UDim2.new(1,-(SIDEBAR_CW+4),1,0); lbl.Position = UDim2.new(0,SIDEBAR_CW,0,0)
-		lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 7; lbl.Parent = btn
-
-		if i < #tabDefs then
-			local sep = Instance.new("Frame")
-			sep.Size = UDim2.new(0.7,0,0,1); sep.Position = UDim2.new(0.15,0,1,-1)
-			sep.BackgroundColor3 = C.borderFaint; sep.BackgroundTransparency = 0.2; sep.BorderSizePixel = 0; sep.ZIndex = 6; sep.Parent = btn
-		end
+		lbl.Size = UDim2.new(1,-20,1,0); lbl.Position = UDim2.new(0,20,0,0)
+		lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 7; lbl.Parent = btn; addToRegistry(lbl, {TextColor3 = "textBright"})
 
 		local data = {name=def.Name, btn=btn, iL=iL, lbl=lbl}
 		table.insert(win._tabButtons, data)
 		local cn = def.Name
-		btn.MouseButton1Click:Connect(function() ripple(btn); showTab(cn) end)
+		btn.InputBegan:Connect(function(inp)
+			if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+				showTab(cn)
+			end
+		end)
 		btn.MouseEnter:Connect(function()
 			if win._activeTab ~= cn then
-				tw(btn, {BackgroundColor3=C.tabHover}, SNAP):Play()
-				tw(iL,  {TextColor3=C.textSub},        SNAP):Play()
-				tw(lbl, {TextColor3=C.textSub},        SNAP):Play()
+				tw(btn, {BackgroundColor3=C.tabHover, BorderColor3=C.accentMid}, SNAP):Play()
 			end
 		end)
 		btn.MouseLeave:Connect(function()
 			if win._activeTab ~= cn then
-				tw(btn, {BackgroundColor3=C.tabInact}, SNAP):Play()
-				tw(iL,  {TextColor3=C.textDim},        SNAP):Play()
-				tw(lbl, {TextColor3=C.textDim},        SNAP):Play()
+				tw(btn, {BackgroundColor3=C.bgRaised, BorderColor3=C.borderHard}, SNAP):Play()
 			end
 		end)
 	end
