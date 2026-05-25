@@ -9,46 +9,45 @@ local TweenService = game:GetService("TweenService")
 local RunService   = game:GetService("RunService")
 
 -- ============================================================
---  PALETTE  —  linorialib blue accent design
+--  PALETTE  —  black / white / gray only
 -- ============================================================
 local C = {
-	-- Linorialib color scheme
 	shellOuter   = Color3.fromRGB(8,   8,   8),
-	shellBorder  = Color3.fromRGB(50,  50,  50),
-	bgMain       = Color3.fromRGB(28,  28,  28),
-	bgDeep       = Color3.fromRGB(20,  20,  20),
-	bgSurface    = Color3.fromRGB(20,  20,  20),
-	bgRaised     = Color3.fromRGB(28,  28,  28),
+	shellBorder  = Color3.fromRGB(55,  55,  55),
+	bgMain       = Color3.fromRGB(100, 100, 100),
+	bgDeep       = Color3.fromRGB(5,   5,   5),
+	bgSurface    = Color3.fromRGB(16,  16,  16),
+	bgRaised     = Color3.fromRGB(22,  22,  22),
 	bgHover      = Color3.fromRGB(30,  30,  30),
-	bgPress      = Color3.fromRGB(0,   85,  255),
-	sidebarBg    = Color3.fromRGB(20,  20,  20),
-	sidebarLine  = Color3.fromRGB(50,  50,  50),
-	tabActive    = Color3.fromRGB(28,  28,  28),
-	tabInact     = Color3.fromRGB(20,  20,  20),
-	tabHover     = Color3.fromRGB(30,  30,  30),
-	accentBright = Color3.fromRGB(0,   85,  255),
-	accentMid    = Color3.fromRGB(100, 150, 255),
-	accentDim    = Color3.fromRGB(0,   85,  255),
-	textBright   = Color3.fromRGB(255, 255, 255),
-	textMid      = Color3.fromRGB(200, 200, 200),
-	textSub      = Color3.fromRGB(150, 150, 150),
-	textDim      = Color3.fromRGB(100, 100, 100),
-	borderHard   = Color3.fromRGB(50,  50,  50),
-	borderSoft   = Color3.fromRGB(40,  40,  40),
-	borderFaint  = Color3.fromRGB(30,  30,  30),
-	rowBg        = Color3.fromRGB(20,  20,  20),
-	rowBgAlt     = Color3.fromRGB(22,  22,  22),
-	titleBg      = Color3.fromRGB(20,  20,  20),
-	dialogBg     = Color3.fromRGB(20,  20,  20),
-	knob         = Color3.fromRGB(255, 255, 255),
-	sliderFill   = Color3.fromRGB(0,   85,  255),
+	bgPress      = Color3.fromRGB(38,  38,  38),
+	sidebarBg    = Color3.fromRGB(7,   7,   7),
+	sidebarLine  = Color3.fromRGB(28,  28,  28),
+	tabActive    = Color3.fromRGB(20,  20,  20),
+	tabInact     = Color3.fromRGB(10,  10,  10),
+	tabHover     = Color3.fromRGB(18,  18,  18),
+	accentBright = Color3.fromRGB(255, 255, 255),
+	accentMid    = Color3.fromRGB(200, 200, 200),
+	accentDim    = Color3.fromRGB(120, 120, 120),
+	textBright   = Color3.fromRGB(245, 245, 245),
+	textMid      = Color3.fromRGB(185, 185, 185),
+	textSub      = Color3.fromRGB(110, 110, 110),
+	textDim      = Color3.fromRGB(60,  60,  60),
+	borderHard   = Color3.fromRGB(45,  45,  45),
+	borderSoft   = Color3.fromRGB(28,  28,  28),
+	borderFaint  = Color3.fromRGB(18,  18,  18),
+	rowBg        = Color3.fromRGB(15,  15,  15),
+	rowBgAlt     = Color3.fromRGB(20,  20,  20),
+	titleBg      = Color3.fromRGB(8,   8,   8),
+	dialogBg     = Color3.fromRGB(12,  12,  12),
+	knob         = Color3.fromRGB(220, 220, 220),
+	sliderFill   = Color3.fromRGB(190, 190, 190),
 	sliderTrack  = Color3.fromRGB(30,  30,  30),
-	dropBg       = Color3.fromRGB(20,  20,  20),
-	dropItem     = Color3.fromRGB(20,  20,  20),
-	dropItemSel  = Color3.fromRGB(28,  28,  28),
-	checkOff     = Color3.fromRGB(20,  20,  20),
-	profileBg    = Color3.fromRGB(20,  20,  20),
-	profileLine  = Color3.fromRGB(50,  50,  50),
+	dropBg       = Color3.fromRGB(10,  10,  10),
+	dropItem     = Color3.fromRGB(14,  14,  14),
+	dropItemSel  = Color3.fromRGB(22,  22,  22),
+	checkOff     = Color3.fromRGB(14,  14,  14),
+	profileBg    = Color3.fromRGB(10,  10,  10),
+	profileLine  = Color3.fromRGB(26,  26,  26),
 }
 
 -- ============================================================
@@ -743,7 +742,7 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 		btn.BackgroundColor3 = C.dropBg; btn.BorderSizePixel = 0
 		btn.Text = ""; btn.AutoButtonColor = false; btn.ZIndex = 6; btn.Parent = container
 		corner(btn, 2); local btnStroke = stroke(btn, C.borderSoft, 1)
-		gradient(btn, Color3.fromRGB(28,28,28), Color3.fromRGB(20,20,20), 180)
+		gradient(btn, Color3.fromRGB(18,18,18), Color3.fromRGB(8,8,8), 180)
 
 		local selLbl = Instance.new("TextLabel")
 		selLbl.Text = options[selIdx]; selLbl.Font = FONT_REG; selLbl.TextSize = 11
@@ -759,11 +758,11 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 
 		local listFrame = Instance.new("Frame")
 		listFrame.Size = UDim2.new(btnW,0,0,0); listFrame.Position = UDim2.new(btnX,0,0,22)
-		listFrame.BackgroundColor3 = Color3.fromRGB(20,20,20); listFrame.BorderSizePixel = 0
+		listFrame.BackgroundColor3 = Color3.fromRGB(10,10,10); listFrame.BorderSizePixel = 0
 		listFrame.ClipsDescendants = true; listFrame.Visible = false; listFrame.ZIndex = 20
 		listFrame.Parent = container
 		corner(listFrame, 2); stroke(listFrame, C.borderHard, 1, 0.1)
-		gradient(listFrame, Color3.fromRGB(28,28,28), Color3.fromRGB(16,16,16), 180)
+		gradient(listFrame, Color3.fromRGB(16,16,16), Color3.fromRGB(8,8,8), 180)
 
 		local pickerPanel, getPColor, getPOpacity, setPickerRaw
 		local function pickerY() return 22 + (ddOpen and LIST_H or 0) end
@@ -805,7 +804,7 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 			listFrame.Visible = true; listFrame.Size = UDim2.new(btnW,0,0,0)
 			tw(arrow,    {Rotation=180, TextColor3=C.textBright}, SPRING):Play()
 			tw(listFrame,{Size=UDim2.new(btnW,0,0,LIST_H)},       SPRING):Play()
-			tw(btn,      {BackgroundColor3=Color3.fromRGB(28,28,28)}, FAST):Play()
+			tw(btn,      {BackgroundColor3=Color3.fromRGB(20,20,20)}, FAST):Play()
 			tw(btnStroke,{Color=C.borderHard},                     FAST):Play()
 			tw(selLbl,   {TextColor3=C.textBright},                FAST):Play()
 			tw(container,{Size=UDim2.new(1,-12,0,containerH())},   MED):Play()
@@ -886,8 +885,8 @@ local function makeColumnObj(sf, registry, openDD, winOptions)
 		end)
 		btn.MouseEnter:Connect(function()
 			if not ddOpen then
-				tw(btn, {BackgroundColor3=Color3.fromRGB(32,32,32)}, SNAP):Play()
-				tw(btnStroke, {Color=C.accentBright}, SNAP):Play()
+				tw(btn, {BackgroundColor3=Color3.fromRGB(18,18,18)}, SNAP):Play()
+				tw(btnStroke, {Color=C.borderHard}, SNAP):Play()
 			end
 		end)
 		btn.MouseLeave:Connect(function()
@@ -1264,7 +1263,7 @@ function OnyxiteLib.new(config)
 	outerFrame.Position = UDim2.new(0.5, -(WIN_W+BORDER*2)/2, 0.5, -(WIN_H+BORDER*2)/2)
 	outerFrame.BackgroundColor3 = C.shellOuter; outerFrame.BorderSizePixel = 0; outerFrame.ZIndex = 1; outerFrame.Parent = gui
 	corner(outerFrame, 3)
-	gradientN(outerFrame, {{0,Color3.fromRGB(12,12,12)},{0.3,Color3.fromRGB(20,20,20)},{0.7,Color3.fromRGB(20,20,20)},{1,Color3.fromRGB(12,12,12)}}, 120)
+	gradientN(outerFrame, {{0,Color3.fromRGB(4,4,4)},{0.3,Color3.fromRGB(18,18,18)},{0.7,Color3.fromRGB(18,18,18)},{1,Color3.fromRGB(4,4,4)}}, 120)
 	stroke(outerFrame, C.shellBorder, 1, 0.3)
 
 	-- Expose internal frames
@@ -1279,18 +1278,18 @@ function OnyxiteLib.new(config)
 	gradientN(main, {{0,C.bgSurface},{0.5,C.bgMain},{1,C.bgDeep}}, 160)
 	stroke(main, C.borderHard, 1, 0.2)
 	-- Semi-transparent so background image shows through
-	main.BackgroundTransparency = 0.1
+	main.BackgroundTransparency = 0.25
 
 	local topAccent = Instance.new("Frame")
-	topAccent.Size = UDim2.new(0,64,0,2)
-	topAccent.BackgroundColor3 = C.accentBright; topAccent.BorderSizePixel = 0; topAccent.ZIndex = 6; topAccent.Parent = main; corner(topAccent, 1)
-	do local g = Instance.new("UIGradient"); g.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,1)}); g.Rotation = 0; g.Parent = topAccent end
+	topAccent.Size = UDim2.new(0,64,0,1)
+	topAccent.BackgroundColor3 = C.accentDim; topAccent.BorderSizePixel = 0; topAccent.ZIndex = 6; topAccent.Parent = main; corner(topAccent, 1)
+	do local g = Instance.new("UIGradient"); g.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0.2),NumberSequenceKeypoint.new(1,1)}); g.Rotation = 0; g.Parent = topAccent end
 
 	local titleBar = Instance.new("Frame"); titleBar.Name = "TitleBar"
 	titleBar.Size = UDim2.new(1,0,0,TITLEBAR_H); titleBar.BackgroundColor3 = C.titleBg
 	titleBar.BorderSizePixel = 0; titleBar.ZIndex = 4; titleBar.Parent = main
 	corner(titleBar, 2)
-	gradientN(titleBar, {{0,Color3.fromRGB(28,28,28)},{0.6,Color3.fromRGB(20,20,20)},{1,Color3.fromRGB(12,12,12)}}, 180)
+	gradientN(titleBar, {{0,Color3.fromRGB(18,18,18)},{0.6,Color3.fromRGB(10,10,10)},{1,Color3.fromRGB(5,5,5)}}, 180)
 	local tSep = Instance.new("Frame")
 	tSep.Size = UDim2.new(1,0,0,1); tSep.Position = UDim2.new(0,0,1,-1)
 	tSep.BackgroundColor3 = C.borderSoft; tSep.BorderSizePixel = 0; tSep.ZIndex = 5; tSep.Parent = titleBar
@@ -1298,7 +1297,7 @@ function OnyxiteLib.new(config)
 
 	local sDot = Instance.new("Frame")
 	sDot.Size = UDim2.new(0,5,0,5); sDot.Position = UDim2.new(0,14,0.5,-2)
-	sDot.BackgroundColor3 = C.accentBright; sDot.BorderSizePixel = 0; sDot.ZIndex = 6; sDot.Parent = titleBar; corner(sDot, 3)
+	sDot.BackgroundColor3 = C.accentDim; sDot.BorderSizePixel = 0; sDot.ZIndex = 6; sDot.Parent = titleBar; corner(sDot, 3)
 
 	local tLbl = Instance.new("TextLabel")
 	tLbl.Text = config.Title or "Onyxite"; tLbl.Font = FONT_BOLD; tLbl.TextSize = 14
@@ -1315,34 +1314,34 @@ function OnyxiteLib.new(config)
 	local function makeWinBtn(xOff, glyph, hBg, hTxt)
 		local b = Instance.new("TextButton")
 		b.Size = UDim2.new(0,22,0,22); b.Position = UDim2.new(1,xOff,0.5,-11)
-		b.BackgroundColor3 = Color3.fromRGB(20,20,20); b.BorderSizePixel = 0
+		b.BackgroundColor3 = Color3.fromRGB(16,16,16); b.BorderSizePixel = 0
 		b.Text = glyph; b.Font = FONT_BOLD; b.TextSize = 14
-		b.TextColor3 = C.textMid; b.AutoButtonColor = false; b.ZIndex = 8; b.Parent = titleBar; corner(b, 2)
-		local s = stroke(b, C.borderHard, 1, 0.3)
+		b.TextColor3 = C.textDim; b.AutoButtonColor = false; b.ZIndex = 8; b.Parent = titleBar; corner(b, 2)
+		local s = stroke(b, C.borderFaint, 1, 0.3)
 		b.MouseEnter:Connect(function() tw(b, {BackgroundColor3=hBg, TextColor3=hTxt}, SNAP):Play(); tw(s, {Color=hTxt, Transparency=0}, SNAP):Play() end)
-		b.MouseLeave:Connect(function() tw(b, {BackgroundColor3=Color3.fromRGB(20,20,20), TextColor3=C.textMid}, SNAP):Play(); tw(s, {Color=C.borderHard, Transparency=0.3}, SNAP):Play() end)
-		b.MouseButton1Down:Connect(function() tw(b, {BackgroundColor3=C.accentBright}, SNAP):Play() end)
+		b.MouseLeave:Connect(function() tw(b, {BackgroundColor3=Color3.fromRGB(16,16,16), TextColor3=C.textDim}, SNAP):Play(); tw(s, {Color=C.borderFaint, Transparency=0.3}, SNAP):Play() end)
+		b.MouseButton1Down:Connect(function() tw(b, {BackgroundColor3=C.bgPress}, SNAP):Play() end)
 		return b
 	end
-	local closeBtn    = makeWinBtn(-30, "×", Color3.fromRGB(60,20,20), Color3.fromRGB(255,100,100))
-	local minimizeBtn = makeWinBtn(-56, "−", Color3.fromRGB(0,85,255), Color3.fromRGB(150,200,255))
+	local closeBtn    = makeWinBtn(-30, "×", Color3.fromRGB(38,12,12), Color3.fromRGB(200,80,80))
+	local minimizeBtn = makeWinBtn(-56, "−", Color3.fromRGB(28,28,20), Color3.fromRGB(200,200,120))
 
 	-- Restore pill
 	local rPill = Instance.new("TextButton")
 	rPill.Size = UDim2.new(0,130,0,26); rPill.Position = UDim2.new(0.5,-65,0,-50)
-	rPill.BackgroundColor3 = Color3.fromRGB(20,20,20); rPill.BorderSizePixel = 0; rPill.Text = ""
+	rPill.BackgroundColor3 = Color3.fromRGB(12,12,12); rPill.BorderSizePixel = 0; rPill.Text = ""
 	rPill.AutoButtonColor = false; rPill.ZIndex = 50; rPill.Visible = false; rPill.Parent = gui
-	corner(rPill, 13); stroke(rPill, C.accentBright, 1, 0.2); gradient(rPill, Color3.fromRGB(28,28,28), Color3.fromRGB(12,12,12), 180)
+	corner(rPill, 13); stroke(rPill, C.borderHard, 1, 0.1); gradient(rPill, Color3.fromRGB(20,20,20), Color3.fromRGB(8,8,8), 180)
 	local pDot2 = Instance.new("Frame")
 	pDot2.Size = UDim2.new(0,5,0,5); pDot2.Position = UDim2.new(0,11,0.5,-2)
-	pDot2.BackgroundColor3 = C.accentBright; pDot2.BorderSizePixel = 0; pDot2.ZIndex = 52; pDot2.Parent = rPill; corner(pDot2, 3)
+	pDot2.BackgroundColor3 = C.accentDim; pDot2.BorderSizePixel = 0; pDot2.ZIndex = 52; pDot2.Parent = rPill; corner(pDot2, 3)
 	local pLbl = Instance.new("TextLabel")
 	pLbl.Text = string.upper(config.Title or "ONYXITE"); pLbl.Font = FONT_BOLD; pLbl.TextSize = 10
-	pLbl.TextColor3 = C.textBright; pLbl.BackgroundTransparency = 1
+	pLbl.TextColor3 = C.textMid; pLbl.BackgroundTransparency = 1
 	pLbl.Size = UDim2.new(1,-24,1,0); pLbl.Position = UDim2.new(0,22,0,0)
 	pLbl.TextXAlignment = Enum.TextXAlignment.Left; pLbl.ZIndex = 52; pLbl.Parent = rPill
-	rPill.MouseEnter:Connect(function() tw(rPill, {BackgroundColor3=Color3.fromRGB(28,28,28)}, SNAP):Play() end)
-	rPill.MouseLeave:Connect(function() tw(rPill, {BackgroundColor3=Color3.fromRGB(20,20,20)}, SNAP):Play() end)
+	rPill.MouseEnter:Connect(function() tw(rPill, {BackgroundColor3=Color3.fromRGB(22,22,22)}, SNAP):Play() end)
+	rPill.MouseLeave:Connect(function() tw(rPill, {BackgroundColor3=Color3.fromRGB(12,12,12)}, SNAP):Play() end)
 	local pDrag, pDS, pSP = false, nil, nil
 	rPill.InputBegan:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 then pDrag = true; pDS = inp.Position; pSP = rPill.Position end end)
 	UIS.InputChanged:Connect(function(inp) if pDrag and inp.UserInputType == Enum.UserInputType.MouseMovement then local d = inp.Position - pDS; rPill.Position = UDim2.new(pSP.X.Scale, pSP.X.Offset+d.X, pSP.Y.Scale, pSP.Y.Offset+d.Y) end end)
@@ -1355,7 +1354,7 @@ function OnyxiteLib.new(config)
 	local cDlg = Instance.new("Frame")
 	cDlg.Size = UDim2.new(0,300,0,158); cDlg.Position = UDim2.new(0.5,-150,0.5,-79)
 	cDlg.BackgroundColor3 = C.dialogBg; cDlg.BorderSizePixel = 0; cDlg.ZIndex = 92; cDlg.Parent = bOver
-	corner(cDlg, 3); gradientN(cDlg, {{0,Color3.fromRGB(28,28,28)},{1,Color3.fromRGB(12,12,12)}}, 160); stroke(cDlg, C.borderHard, 1, 0.1)
+	corner(cDlg, 3); gradientN(cDlg, {{0,Color3.fromRGB(20,20,20)},{1,Color3.fromRGB(6,6,6)}}, 160); stroke(cDlg, C.borderHard, 1, 0.1)
 	local dTop = Instance.new("Frame"); dTop.Size = UDim2.new(1,0,0,1); dTop.BackgroundColor3 = C.borderSoft; dTop.BorderSizePixel = 0; dTop.ZIndex = 93; dTop.Parent = cDlg
 	do local g = Instance.new("UIGradient"); g.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0.4),NumberSequenceKeypoint.new(0.5,0),NumberSequenceKeypoint.new(1,0.4)}); g.Rotation = 0; g.Parent = dTop end
 	local dTitle = Instance.new("TextLabel")
@@ -1380,12 +1379,12 @@ function OnyxiteLib.new(config)
 		b.TextTransparency = 1; b.TextSize = 11; b.Font = FONT_REG
 		b.AutoButtonColor = false; b.ZIndex = 93; b.Parent = cDlg; corner(b, 2); stroke(b, sc, 1, 0.4); return b
 	end
-	local cancelBtn  = mDB(14,  120, "CANCEL", Color3.fromRGB(20,20,20),  C.textMid,              C.borderHard)
-	local confirmBtn = mDB(148, 120, "CLOSE",  Color3.fromRGB(40,15,15),    Color3.fromRGB(255,100,100), Color3.fromRGB(150,50,50))
+	local cancelBtn  = mDB(14,  120, "CANCEL", Color3.fromRGB(16,16,16),  C.textMid,              C.borderHard)
+	local confirmBtn = mDB(148, 120, "CLOSE",  Color3.fromRGB(24,6,6),    Color3.fromRGB(190,70,70), Color3.fromRGB(100,30,30))
 	cancelBtn.MouseEnter:Connect(function()  tw(cancelBtn,  {BackgroundColor3=C.bgHover, TextColor3=C.textBright}, SNAP):Play() end)
-	cancelBtn.MouseLeave:Connect(function()  tw(cancelBtn,  {BackgroundColor3=Color3.fromRGB(20,20,20), TextColor3=C.textMid}, SNAP):Play() end)
-	confirmBtn.MouseEnter:Connect(function() tw(confirmBtn, {BackgroundColor3=Color3.fromRGB(50,20,20)}, SNAP):Play() end)
-	confirmBtn.MouseLeave:Connect(function() tw(confirmBtn, {BackgroundColor3=Color3.fromRGB(40,15,15)}, SNAP):Play() end)
+	cancelBtn.MouseLeave:Connect(function()  tw(cancelBtn,  {BackgroundColor3=Color3.fromRGB(16,16,16), TextColor3=C.textMid}, SNAP):Play() end)
+	confirmBtn.MouseEnter:Connect(function() tw(confirmBtn, {BackgroundColor3=Color3.fromRGB(38,8,8)}, SNAP):Play() end)
+	confirmBtn.MouseLeave:Connect(function() tw(confirmBtn, {BackgroundColor3=Color3.fromRGB(24,6,6)}, SNAP):Play() end)
 
 	local function openDialog()
 		if openDD.fn then openDD.fn(); openDD.fn = nil end
@@ -1441,37 +1440,37 @@ function OnyxiteLib.new(config)
 	-- Resize handle
 	local rHandle = Instance.new("TextButton")
 	rHandle.Size = UDim2.new(0,20,0,20); rHandle.Position = UDim2.new(1,-18,1,-18)
-	rHandle.BackgroundColor3 = Color3.fromRGB(0,85,255); rHandle.BackgroundTransparency = 0.85
+	rHandle.BackgroundColor3 = Color3.fromRGB(30,30,30); rHandle.BackgroundTransparency = 0.6
 	rHandle.BorderSizePixel = 0; rHandle.Text = ""; rHandle.AutoButtonColor = false; rHandle.ZIndex = 20; rHandle.Parent = main; corner(rHandle, 2)
 	local rGlyph = Instance.new("TextLabel")
 	rGlyph.Text = "↘"; rGlyph.Font = FONT_BOLD; rGlyph.TextSize = 16
-	rGlyph.TextColor3 = C.accentBright; rGlyph.BackgroundTransparency = 1; rGlyph.Size = UDim2.fromScale(1,1); rGlyph.ZIndex = 21; rGlyph.Parent = rHandle
+	rGlyph.TextColor3 = C.textDim; rGlyph.BackgroundTransparency = 1; rGlyph.Size = UDim2.fromScale(1,1); rGlyph.ZIndex = 21; rGlyph.Parent = rHandle
 	local rz, rDS, rSS = false, nil, nil
 	rHandle.InputBegan:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 then rz = true; rDS = inp.Position; rSS = outerFrame.AbsoluteSize end end)
 	UIS.InputChanged:Connect(function(inp) if rz and inp.UserInputType == Enum.UserInputType.MouseMovement then local d = inp.Position - rDS; outerFrame.Size = UDim2.new(0, math.max(WIN_MIN_W, rSS.X+d.X), 0, math.max(WIN_MIN_H, rSS.Y+d.Y)) end end)
 	UIS.InputEnded:Connect(function(inp) if inp.UserInputType == Enum.UserInputType.MouseButton1 then rz = false end end)
-	rHandle.MouseEnter:Connect(function() tw(rHandle, {BackgroundTransparency=0.5}, SNAP):Play(); tw(rGlyph, {TextColor3=C.textBright}, SNAP):Play() end)
-	rHandle.MouseLeave:Connect(function() tw(rHandle, {BackgroundTransparency=0.85}, SNAP):Play(); tw(rGlyph, {TextColor3=C.accentBright}, SNAP):Play() end)
+	rHandle.MouseEnter:Connect(function() tw(rHandle, {BackgroundTransparency=0.3}, SNAP):Play(); tw(rGlyph, {TextColor3=C.textSub}, SNAP):Play() end)
+	rHandle.MouseLeave:Connect(function() tw(rHandle, {BackgroundTransparency=0.6}, SNAP):Play(); tw(rGlyph, {TextColor3=C.textDim}, SNAP):Play() end)
 
 	-- Sidebar
 	local sidebar = Instance.new("Frame"); sidebar.Name = "Sidebar"
 	sidebar.Size = UDim2.new(0,SIDEBAR_OW,1,-TITLEBAR_H); sidebar.Position = UDim2.new(0,0,0,TITLEBAR_H)
 	sidebar.BackgroundColor3 = C.sidebarBg; sidebar.BorderSizePixel = 0; sidebar.ZIndex = 4; sidebar.ClipsDescendants = true; sidebar.Parent = main; corner(sidebar, 2)
-	gradientN(sidebar, {{0,Color3.fromRGB(28,28,28)},{0.5,Color3.fromRGB(20,20,20)},{1,Color3.fromRGB(12,12,12)}}, 180)
+	gradientN(sidebar, {{0,Color3.fromRGB(14,14,14)},{0.5,Color3.fromRGB(8,8,8)},{1,Color3.fromRGB(4,4,4)}}, 180)
 	local sB = Instance.new("Frame")
 	sB.Size = UDim2.new(0,1,1,0); sB.Position = UDim2.new(1,-1,0,0)
-	sB.BackgroundColor3 = C.borderHard; sB.BorderSizePixel = 0; sB.ZIndex = 5; sB.Parent = sidebar
+	sB.BackgroundColor3 = C.borderSoft; sB.BorderSizePixel = 0; sB.ZIndex = 5; sB.Parent = sidebar
 	do local g = Instance.new("UIGradient"); g.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0.7),NumberSequenceKeypoint.new(0.5,0.1),NumberSequenceKeypoint.new(1,0.7)}); g.Rotation = 90; g.Parent = sB end
 
 	local sLA = Instance.new("Frame")
-	sLA.Size = UDim2.new(1,0,0,44); sLA.BackgroundColor3 = Color3.fromRGB(28,28,28); sLA.BorderSizePixel = 0; sLA.ZIndex = 5; sLA.Parent = sidebar; corner(sLA, 2)
-	gradientN(sLA, {{0,Color3.fromRGB(32,32,32)},{1,Color3.fromRGB(16,16,16)}}, 180)
+	sLA.Size = UDim2.new(1,0,0,44); sLA.BackgroundColor3 = Color3.fromRGB(10,10,10); sLA.BorderSizePixel = 0; sLA.ZIndex = 5; sLA.Parent = sidebar; corner(sLA, 2)
+	gradientN(sLA, {{0,Color3.fromRGB(20,20,20)},{1,Color3.fromRGB(6,6,6)}}, 180)
 	local sLD = Instance.new("Frame")
 	sLD.Size = UDim2.new(0,5,0,5); sLD.Position = UDim2.new(0,12,0.5,-2)
-	sLD.BackgroundColor3 = C.accentBright; sLD.BorderSizePixel = 0; sLD.ZIndex = 6; sLD.Parent = sLA; corner(sLD, 3)
+	sLD.BackgroundColor3 = C.accentDim; sLD.BorderSizePixel = 0; sLD.ZIndex = 6; sLD.Parent = sLA; corner(sLD, 3)
 	local sLT = Instance.new("TextLabel")
 	sLT.Text = config.Creator or "Onyxite"; sLT.Font = FONT_SCI; sLT.TextSize = 11
-	sLT.TextColor3 = C.textBright; sLT.BackgroundTransparency = 1
+	sLT.TextColor3 = C.textMid; sLT.BackgroundTransparency = 1
 	sLT.Size = UDim2.new(1,-24,1,0); sLT.Position = UDim2.new(0,22,0,0)
 	sLT.TextXAlignment = Enum.TextXAlignment.Left; sLT.ZIndex = 6; sLT.Parent = sLA
 	local sLDiv = Instance.new("Frame")
